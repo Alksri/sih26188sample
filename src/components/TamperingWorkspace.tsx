@@ -10,12 +10,18 @@ import { TamperingResult, ExtractedDocumentData } from '../types/screening';
 interface TamperingWorkspaceProps {
   tamperingResult: TamperingResult;
   extractedData: ExtractedDocumentData;
+  imagePreviewUrl?: string;
+  isValidDocument?: boolean;
+  rejectionReason?: string;
   isDark: boolean;
 }
 
 export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
   tamperingResult,
   extractedData,
+  imagePreviewUrl,
+  isValidDocument,
+  rejectionReason,
   isDark,
 }) => {
   const [activeFilter, setActiveFilter] = useState<'normal' | 'uv' | 'ir' | 'ela'>('normal');
@@ -188,59 +194,82 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
                     : 'none',
               }}
             >
-              {/* Header */}
-              <div className="flex justify-between items-start mb-3 border-b pb-2">
-                <div>
-                  <div className="text-[9px] font-mono uppercase tracking-widest text-slate-500">
-                    REPUBLIC OF INDIA // OFFICIAL TRAVEL DOCUMENT
-                  </div>
-                  <div className="text-sm font-bold font-mono">
-                    {extractedData.visaNumber || 'V-9842104-IN'}
-                  </div>
-                </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-black/20 font-bold bg-slate-100">
-                  IND
-                </span>
-              </div>
-
-              {/* Photo & Details */}
-              <div className="grid grid-cols-3 gap-3 mb-3">
-                {/* Photo box */}
-                <div className="col-span-1 h-28 bg-slate-200 rounded border border-black/15 flex flex-col items-center justify-center relative overflow-hidden">
-                  <Camera className="w-8 h-8 text-slate-400 mb-1" />
-                  <span className="text-[9px] font-mono text-slate-500">PORTRAIT</span>
-
-                  {/* Photo Anomaly overlay if tampered */}
-                  {isTampered && (
-                    <div className="absolute inset-0 border-2 border-dashed border-red-500/80 bg-red-500/10 flex items-end p-1">
-                      <span className="text-[8px] font-mono text-red-600 bg-white/90 px-1 rounded font-bold">
-                        EDGE CLONE 82%
-                      </span>
+              {imagePreviewUrl ? (
+                <div className="relative w-full rounded overflow-hidden flex items-center justify-center bg-black/5">
+                  <img
+                    src={imagePreviewUrl}
+                    alt="Ingested Identity Document"
+                    className="w-full max-h-[260px] sm:max-h-[300px] object-contain rounded select-none"
+                  />
+                  {/* If invalid document, overlay red rejection stamp */}
+                  {isValidDocument === false && (
+                    <div className="absolute inset-0 bg-red-950/50 border-4 border-red-500 rounded flex flex-col items-center justify-center p-3 text-center backdrop-blur-[1px]">
+                      <div className="text-red-500 font-mono font-black text-sm sm:text-base border-2 border-red-500 px-3 py-1 rounded -rotate-6 uppercase tracking-wider shadow-2xl bg-black/90">
+                        REJECTED // WRONG SPECIMEN
+                      </div>
+                      <p className="mt-2 text-[10px] sm:text-xs font-mono text-red-200 bg-black/90 px-2.5 py-1 rounded max-w-xs font-medium">
+                        {rejectionReason || 'Visual inspection failed: Not an authentic government identity document.'}
+                      </p>
                     </div>
                   )}
                 </div>
+              ) : (
+                <>
+                  {/* Header */}
+                  <div className="flex justify-between items-start mb-3 border-b pb-2">
+                    <div>
+                      <div className="text-[9px] font-mono uppercase tracking-widest text-slate-500">
+                        REPUBLIC OF INDIA // OFFICIAL TRAVEL DOCUMENT
+                      </div>
+                      <div className="text-sm font-bold font-mono">
+                        {extractedData.visaNumber || 'V-9842104-IN'}
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-black/20 font-bold bg-slate-100">
+                      IND
+                    </span>
+                  </div>
 
-                {/* Details */}
-                <div className="col-span-2 space-y-1 font-mono text-[10px]">
-                  <div>NAME: {extractedData.fullName}</div>
-                  <div>PASSPORT: {extractedData.passportNumber}</div>
-                  <div>TYPE: {extractedData.visaType}</div>
-                  <div>EXPIRY: {extractedData.dateOfExpiry}</div>
-                  <div>GENDER: {extractedData.gender}</div>
-                  <div>VALIDATION: {extractedData.entryValidation}</div>
-                </div>
-              </div>
+                  {/* Photo & Details */}
+                  <div className="grid grid-cols-3 gap-3 mb-3">
+                    {/* Photo box */}
+                    <div className="col-span-1 h-28 bg-slate-200 rounded border border-black/15 flex flex-col items-center justify-center relative overflow-hidden">
+                      <Camera className="w-8 h-8 text-slate-400 mb-1" />
+                      <span className="text-[9px] font-mono text-slate-500">PORTRAIT</span>
 
-              {/* MRZ Band */}
-              <div
-                className={`p-1.5 rounded font-mono text-[9px] tracking-wider break-all leading-tight border ${
-                  extractedData.mrzValid
-                    ? 'bg-slate-100 text-slate-800 border-black/10'
-                    : 'bg-red-50 text-red-700 border-red-300 font-bold'
-                }`}
-              >
-                {extractedData.mrzCode || 'V<INDSINGH<<AVANISH<<<<<<<<<<<<<<<<<<<\nZ89201944IND8808142M2910248<<<<<<<<<<<<<<<6'}
-              </div>
+                      {/* Photo Anomaly overlay if tampered */}
+                      {isTampered && (
+                        <div className="absolute inset-0 border-2 border-dashed border-red-500/80 bg-red-500/10 flex items-end p-1">
+                          <span className="text-[8px] font-mono text-red-600 bg-white/90 px-1 rounded font-bold">
+                            EDGE CLONE 82%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Details */}
+                    <div className="col-span-2 space-y-1 font-mono text-[10px]">
+                      <div>NAME: {extractedData.fullName}</div>
+                      <div>PASSPORT: {extractedData.passportNumber}</div>
+                      <div>TYPE: {extractedData.visaType}</div>
+                      <div>EXPIRY: {extractedData.dateOfExpiry}</div>
+                      <div>GENDER: {extractedData.gender}</div>
+                      <div>VALIDATION: {extractedData.entryValidation}</div>
+                    </div>
+                  </div>
+
+                  {/* MRZ Band */}
+                  <div
+                    className={`p-1.5 rounded font-mono text-[9px] tracking-wider break-all leading-tight border ${
+                      extractedData.mrzValid
+                        ? 'bg-slate-100 text-slate-800 border-black/10'
+                        : 'bg-red-50 text-red-700 border-red-300 font-bold'
+                    }`}
+                  >
+                    {extractedData.mrzCode || 'V<INDSINGH<<AVANISH<<<<<<<<<<<<<<<<<<<\nZ89201944IND8808142M2910248<<<<<<<<<<<<<<<6'}
+                  </div>
+                </>
+              )}
 
               {/* UV Mode Authentic Emblem watermark */}
               {activeFilter === 'uv' && (

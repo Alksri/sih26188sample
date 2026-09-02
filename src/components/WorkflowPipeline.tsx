@@ -19,7 +19,13 @@ import {
   OfficerProfile
 } from '../types/screening';
 import { TamperingWorkspace } from './TamperingWorkspace';
-import { analyzeWithGemini25 } from '../services/aiEngine';
+import {
+  analyzeWithGemini25,
+  DEMO_CASE_1_GENUINE,
+  DEMO_CASE_2_TAMPERED,
+  DEMO_CASE_3_FACE_MISMATCH,
+  DEMO_CASE_INVALID_DOCUMENT
+} from '../services/aiEngine';
 
 interface WorkflowPipelineProps {
   currentCase: VerificationCase;
@@ -66,9 +72,11 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
     try {
       const reader = new FileReader();
       reader.onload = async () => {
-        const base64 = (reader.result as string).split(',')[1];
+        const dataUrl = reader.result as string;
+        const base64 = dataUrl.split(',')[1];
         setProcessingStageText('Running Multimodal Neural Extraction & Modulo-7 MRZ Parity Checks...');
         const result = await analyzeWithGemini25(file, base64);
+        result.imagePreviewUrl = dataUrl;
         setIsProcessing(false);
         onUpdateCase(result);
         setActiveStepIndex(1); // Advance to Extraction
@@ -231,6 +239,55 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
             )}
           </div>
 
+          {/* Quick Scenario Evaluator */}
+          <div className="pt-2 text-center space-y-2">
+            <span className="text-xs font-mono opacity-60 block">
+              Or evaluate pre-calibrated scenario benchmarks:
+            </span>
+            <div className="flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateCase(DEMO_CASE_1_GENUINE);
+                  setActiveStepIndex(1);
+                }}
+                className="px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 text-xs font-mono hover:bg-emerald-500 hover:text-white transition-all cursor-pointer"
+              >
+                Pass: Diplomatic Visa (9% Risk)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateCase(DEMO_CASE_2_TAMPERED);
+                  setActiveStepIndex(1);
+                }}
+                className="px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-600 text-xs font-mono hover:bg-red-500 hover:text-white transition-all cursor-pointer"
+              >
+                Fail: Tampered Forgery (88% Risk)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateCase(DEMO_CASE_3_FACE_MISMATCH);
+                  setActiveStepIndex(1);
+                }}
+                className="px-3 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-600 text-xs font-mono hover:bg-amber-500 hover:text-white transition-all cursor-pointer"
+              >
+                Fail: Biometric Imposter (41% Match)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateCase(DEMO_CASE_INVALID_DOCUMENT);
+                  setActiveStepIndex(1);
+                }}
+                className="px-3 py-1.5 rounded-lg border border-red-600/50 bg-red-600/20 text-red-700 dark:text-red-400 text-xs font-mono hover:bg-red-600 hover:text-white transition-all cursor-pointer font-bold"
+              >
+                Fail: Wrong / Non-ID Image (99% Risk)
+              </button>
+            </div>
+          </div>
+
           <div className="text-center pt-2">
             <button
               type="button"
@@ -259,6 +316,26 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
               Average Confidence: {currentCase.riskAssessment.extractionConfidenceAvg}%
             </div>
           </div>
+
+          {/* CRITICAL REJECTION BANNER IF NON-IDENTITY DOCUMENT */}
+          {currentCase.isValidDocument === false && (
+            <div className="p-5 rounded-2xl border-2 border-red-500 bg-red-500/10 text-red-600 dark:text-red-400 font-mono space-y-3 shadow-lg">
+              <div className="flex items-center gap-2.5 font-bold text-base">
+                <AlertTriangle className="w-6 h-6 text-red-500 animate-bounce" />
+                <span className="tracking-wide">CRITICAL: WRONG / INVALID SPECIMEN REJECTED</span>
+              </div>
+              <p className="text-xs sm:text-sm font-sans font-medium text-black dark:text-white">
+                {currentCase.rejectionReason ||
+                  'The uploaded file is NOT an authentic government-issued identity document (Passport, Visa, or National ID). Visual and geometric classification failed.'}
+              </p>
+              <div className="text-[11px] font-mono opacity-80 flex flex-wrap gap-3 pt-1 border-t border-red-500/20">
+                <span>• ICAO Doc 9303 Compliant: <strong>NO (FAILED)</strong></span>
+                <span>• MRZ Optical Zone: <strong>NOT DETECTED</strong></span>
+                <span>• Government Seals: <strong>0 DETECTED</strong></span>
+                <span>• Risk Index: <strong className="text-red-500">99% (CRITICAL)</strong></span>
+              </div>
+            </div>
+          )}
 
           {/* Workflow architecture visualization (Specified in requirements) */}
           <div className="p-3 rounded-xl border border-black/5 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950 flex items-center justify-between text-[11px] font-mono overflow-x-auto gap-2">
@@ -518,6 +595,9 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
           <TamperingWorkspace
             tamperingResult={currentCase.tamperingResult}
             extractedData={currentCase.extractedData}
+            imagePreviewUrl={currentCase.imagePreviewUrl}
+            isValidDocument={currentCase.isValidDocument}
+            rejectionReason={currentCase.rejectionReason}
             isDark={isDark}
           />
 

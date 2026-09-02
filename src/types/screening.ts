@@ -84,9 +84,11 @@ export interface VerificationCase {
   caseId: string;
   timestamp: string;
   officerId: string;
-  documentType: 'PASSPORT' | 'VISA' | 'DIPLOMATIC_ID' | 'NATIONAL_ID';
+  documentType: 'PASSPORT' | 'VISA' | 'DIPLOMATIC_ID' | 'NATIONAL_ID' | 'INVALID_SPECIMEN' | string;
   fileName: string;
   imagePreviewUrl?: string;
+  isValidDocument?: boolean;
+  rejectionReason?: string;
   extractedData: ExtractedDocumentData;
   validationChecklist: ValidationItem[];
   tamperingResult: TamperingResult;
