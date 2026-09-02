@@ -2,7 +2,8 @@ import {
   VerificationCase
 } from '../types/screening';
 
-const DEFAULT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
+const DEFAULT_GEMINI_KEY: string =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) || '';
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
 export const DEMO_CASE_1_GENUINE: VerificationCase = {
