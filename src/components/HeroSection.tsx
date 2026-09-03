@@ -159,7 +159,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       {/* 2-Column Split Layout: Left Content & Right Unblurred Video */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
         {/* LEFT COLUMN: Core Value Proposition */}
-        <div className="lg:col-span-7 space-y-6">
+        <div className="lg:col-span-6 space-y-6">
           {/* Top Badge */}
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-mono tracking-wide">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
@@ -251,13 +251,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         </div>
 
         {/* RIGHT COLUMN: UNBLURRED VIDEO SURVEILLANCE DISPLAY */}
-        <div className="lg:col-span-5 flex justify-center">
+        <div className="lg:col-span-6 flex justify-center lg:justify-end">
           <div
             onMouseMove={handleVideoMouseMove}
             onMouseLeave={handleVideoMouseLeave}
             onTouchMove={handleVideoTouchMove}
             onTouchEnd={handleVideoTouchEnd}
-            className={`w-full max-w-lg rounded-2xl overflow-hidden border shadow-2xl relative group transition-all duration-300 ${
+            className={`w-full max-w-[560px] rounded-2xl overflow-hidden border shadow-2xl relative group transition-all duration-300 ${
               isDark
                 ? 'border-cyan-500/30 bg-slate-900 shadow-[0_0_30px_rgba(6,182,212,0.15)]'
                 : 'border-black/20 bg-black shadow-2xl'
@@ -292,21 +292,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 <source src={REMOTE_VIDEO_SRC} type="video/mp4" />
               </video>
 
-              {/* High-tech HUD Overlay Reticle */}
-              <div className="absolute inset-0 pointer-events-none p-4 flex flex-col justify-between z-10">
-                {/* Corner reticles */}
-                <div className="flex justify-between">
-                  <div className="w-4 h-4 border-t-2 border-l-2 border-cyan-400" />
-                  <div className="w-4 h-4 border-t-2 border-r-2 border-cyan-400" />
-                </div>
-
-                {/* Laser scan line sweeping across */}
+              {/* Laser scan line sweeping across */}
+              <div className="absolute inset-0 pointer-events-none flex flex-col justify-center z-10">
                 <div className="w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_10px_#22d3ee] animate-scan-laser opacity-80" />
-
-                <div className="flex justify-between items-end">
-                  <div className="w-4 h-4 border-b-2 border-l-2 border-cyan-400" />
-                  <div className="w-4 h-4 border-b-2 border-r-2 border-cyan-400" />
-                </div>
               </div>
 
               {/* Bottom Telemetry Ticker */}

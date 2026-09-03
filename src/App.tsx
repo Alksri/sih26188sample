@@ -93,13 +93,6 @@ export default function App() {
         isDark ? 'dark-theme bg-[#0b0f19] text-slate-100' : 'bg-[#f4f4f0] text-black'
       } selection:bg-black selection:text-white`}
     >
-      {/* Subtle 40px CSS Grid Background */}
-      <div
-        className={`fixed inset-0 pointer-events-none bg-grid-subtle z-0 transition-opacity duration-500 ${
-          isDark ? 'opacity-[0.06]' : 'opacity-[0.035]'
-        }`}
-        aria-hidden="true"
-      />
 
       {/* Top Navbar */}
       <Navbar
