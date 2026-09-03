@@ -755,8 +755,8 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl border border-black/10 dark:border-slate-800 text-xs font-mono text-left leading-relaxed">
-                  "{currentCase.faceVerificationResult.explanation}"
+                <div className="p-3 rounded-xl border border-black/10 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950/60 text-xs font-mono text-left leading-relaxed">
+                  {currentCase.faceVerificationResult.explanation?.replace(/^["'\s]+|["'\s]+$/g, '')}
                 </div>
               </div>
 

@@ -318,7 +318,13 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
           </div>
 
           {/* Active Spectral Filter Description */}
-          <div className="mt-3 p-2.5 rounded-lg bg-black/5 dark:bg-slate-950 text-xs font-mono flex items-center justify-between">
+          <div
+            className={`mt-3 p-2.5 rounded-lg text-xs font-mono flex items-center justify-between border transition-colors ${
+              isDark
+                ? 'border-slate-800 bg-slate-950/80 text-slate-200'
+                : 'border-black/10 bg-slate-100 text-slate-900'
+            }`}
+          >
             <span>
               Mode:{' '}
               <strong className="uppercase">
@@ -331,7 +337,7 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
                   : 'Standard Visible White Light'}
               </strong>
             </span>
-            <span className="opacity-50">SIH26188 Forensics</span>
+            <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>SIH26188 Forensics</span>
           </div>
         </div>
 
@@ -348,7 +354,13 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
             </h3>
 
             {/* Vector 1: Photo Replacement */}
-            <div className="p-3 rounded-xl border border-black/5 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950">
+            <div
+              className={`p-3 rounded-xl border transition-colors ${
+                isDark
+                  ? 'border-slate-800 bg-slate-950/80 text-slate-100'
+                  : 'border-black/10 bg-slate-100/80 text-slate-900'
+              }`}
+            >
               <div className="flex justify-between items-center text-xs font-mono mb-1">
                 <span className="font-semibold">Photo Replacement</span>
                 <span
@@ -363,7 +375,7 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
                   Risk: {tamperingResult.photoReplacementRisk}% — {tamperingResult.photoReplacementStatus}
                 </span>
               </div>
-              <div className="w-full h-1.5 rounded-full bg-black/10 dark:bg-slate-800 overflow-hidden">
+              <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${
                     tamperingResult.photoReplacementRisk > 50
@@ -378,7 +390,13 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
             </div>
 
             {/* Vector 2: Text Manipulation */}
-            <div className="p-3 rounded-xl border border-black/5 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950">
+            <div
+              className={`p-3 rounded-xl border transition-colors ${
+                isDark
+                  ? 'border-slate-800 bg-slate-950/80 text-slate-100'
+                  : 'border-black/10 bg-slate-100/80 text-slate-900'
+              }`}
+            >
               <div className="flex justify-between items-center text-xs font-mono mb-1">
                 <span className="font-semibold">Text Manipulation</span>
                 <span
@@ -393,7 +411,7 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
                   Risk: {tamperingResult.textManipulationRisk}% — {tamperingResult.textManipulationStatus}
                 </span>
               </div>
-              <div className="w-full h-1.5 rounded-full bg-black/10 dark:bg-slate-800 overflow-hidden">
+              <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${
                     tamperingResult.textManipulationRisk > 50
@@ -408,7 +426,13 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
             </div>
 
             {/* Vector 3: Stamp Forgery */}
-            <div className="p-3 rounded-xl border border-black/5 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950">
+            <div
+              className={`p-3 rounded-xl border transition-colors ${
+                isDark
+                  ? 'border-slate-800 bg-slate-950/80 text-slate-100'
+                  : 'border-black/10 bg-slate-100/80 text-slate-900'
+              }`}
+            >
               <div className="flex justify-between items-center text-xs font-mono mb-1">
                 <span className="font-semibold">Stamp Forgery</span>
                 <span
@@ -423,7 +447,7 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
                   Risk: {tamperingResult.stampForgeryRisk}% — {tamperingResult.stampForgeryStatus}
                 </span>
               </div>
-              <div className="w-full h-1.5 rounded-full bg-black/10 dark:bg-slate-800 overflow-hidden">
+              <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${
                     tamperingResult.stampForgeryRisk > 50
@@ -438,7 +462,13 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
             </div>
 
             {/* Vector 4: Metadata Anomaly */}
-            <div className="p-3 rounded-xl border border-black/5 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950">
+            <div
+              className={`p-3 rounded-xl border transition-colors ${
+                isDark
+                  ? 'border-slate-800 bg-slate-950/80 text-slate-100'
+                  : 'border-black/10 bg-slate-100/80 text-slate-900'
+              }`}
+            >
               <div className="flex justify-between items-center text-xs font-mono mb-1">
                 <span className="font-semibold">Metadata Anomaly</span>
                 <span
@@ -453,7 +483,7 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
                   Risk: {tamperingResult.metadataAnomalyRisk}% — {tamperingResult.metadataAnomalyStatus}
                 </span>
               </div>
-              <div className="w-full h-1.5 rounded-full bg-black/10 dark:bg-slate-800 overflow-hidden">
+              <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${
                     tamperingResult.metadataAnomalyRisk > 50
@@ -481,8 +511,16 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
               </h4>
             </div>
 
-            <p className="text-xs font-mono leading-relaxed p-3 rounded-xl border border-black/10 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950">
-              "{tamperingResult.explanation}"
+            <p
+              className={`text-xs font-mono leading-relaxed p-3.5 rounded-xl border transition-colors ${
+                isDark
+                  ? 'border-slate-800 bg-slate-950/80 text-slate-200'
+                  : 'border-black/10 bg-slate-100/80 text-slate-900'
+              }`}
+            >
+              {tamperingResult.explanation
+                ? tamperingResult.explanation.replace(/^["'\s]+|["'\s]+$/g, '')
+                : 'Document structure matches standard ICAO Doc 9303 specifications.'}
             </p>
 
             {/* Anomaly list */}
@@ -499,7 +537,9 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
                     className={`p-2 rounded-lg border text-xs font-mono transition-colors cursor-pointer ${
                       hoveredAnomalyId === a.id
                         ? 'border-cyan-500 bg-cyan-500/10'
-                        : 'border-black/5 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950'
+                        : isDark
+                        ? 'border-slate-800 bg-slate-950/80 text-slate-200'
+                        : 'border-black/10 bg-slate-100 text-slate-900'
                     }`}
                   >
                     <div className="flex justify-between font-bold">

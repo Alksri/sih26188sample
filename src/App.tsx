@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { ScanLine } from 'lucide-react';
 import {
   VerificationCase,
@@ -87,10 +87,18 @@ export default function App() {
 
   const isDark = theme === 'dark';
 
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark', 'dark-theme');
+    } else {
+      document.documentElement.classList.remove('dark', 'dark-theme');
+    }
+  }, [isDark]);
+
   return (
     <div
       className={`min-h-screen transition-colors duration-500 relative font-body-custom ${
-        isDark ? 'dark-theme bg-[#0b0f19] text-slate-100' : 'bg-[#f4f4f0] text-black'
+        isDark ? 'dark dark-theme bg-[#0b0f19] text-slate-100' : 'bg-[#f4f4f0] text-slate-900'
       } selection:bg-black selection:text-white`}
     >
 
