@@ -58,7 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="flex flex-row items-center gap-2 text-left group cursor-pointer focus:outline-none"
           >
             <span className="font-heading-custom text-xl sm:text-2xl tracking-tight font-bold leading-none">
-              Aegis®
+              Bumblebee
             </span>
             <span
               className={`text-lg select-none group-hover:rotate-45 transition-transform duration-300 ${

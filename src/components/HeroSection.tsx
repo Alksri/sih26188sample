@@ -216,7 +216,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           {/* Instant Hackathon Demo Scenario Launchpad */}
           <div className="pt-4 space-y-2">
             <span className="text-xs font-mono uppercase tracking-wider opacity-60 block">
-              Direct SIH Hackathon Demo Presets:
+              UPLOAD THE DOCUMENTS:
             </span>
             <div className="flex flex-wrap gap-2">
               <button
@@ -225,7 +225,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 className="px-3.5 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-600 hover:text-white text-xs font-mono font-medium transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
               >
                 <Shield className="w-3.5 h-3.5" />
-                Demo 1: Genuine Passport
+                Passport
               </button>
 
               <button
@@ -234,7 +234,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 className="px-3.5 py-1.5 rounded-lg border border-red-500/40 bg-red-500/10 text-red-600 hover:bg-red-600 hover:text-white text-xs font-mono font-medium transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
               >
                 <Eye className="w-3.5 h-3.5" />
-                Demo 2: Tampered Document
+                Visa
               </button>
 
               <button
@@ -243,7 +243,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 className="px-3.5 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-600 hover:bg-amber-600 hover:text-white text-xs font-mono font-medium transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
               >
                 <Fingerprint className="w-3.5 h-3.5" />
-                Demo 3: Face Mismatch
+                Face Mismatch
               </button>
             </div>
           </div>
