@@ -6,8 +6,7 @@ import {
   FileCheck,
   Eye,
   Fingerprint,
-  Activity,
-  Maximize2
+  Activity
 } from 'lucide-react';
 
 interface HeroSectionProps {
@@ -250,67 +249,29 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </div>
         </div>
 
-        {/* RIGHT COLUMN: UNBLURRED VIDEO SURVEILLANCE DISPLAY */}
+        {/* RIGHT COLUMN: CLEAN VIDEO DISPLAY */}
         <div className="lg:col-span-6 flex justify-center lg:justify-end">
           <div
             onMouseMove={handleVideoMouseMove}
             onMouseLeave={handleVideoMouseLeave}
             onTouchMove={handleVideoTouchMove}
             onTouchEnd={handleVideoTouchEnd}
-            className={`w-full max-w-[560px] rounded-2xl overflow-hidden border shadow-2xl relative group transition-all duration-300 ${
-              isDark
-                ? 'border-cyan-500/30 bg-slate-900 shadow-[0_0_30px_rgba(6,182,212,0.15)]'
-                : 'border-black/20 bg-black shadow-2xl'
-            }`}
+            className="w-full max-w-[580px] rounded-2xl overflow-hidden shadow-2xl relative transition-all duration-300"
           >
-            {/* Monitor Header / Telemetry Bar */}
-            <div className="bg-black/90 px-4 py-2.5 border-b border-white/10 flex items-center justify-between text-xs font-mono text-white/80">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="font-semibold tracking-wide">LIVE RECON FEED // CAM-04</span>
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-white/50">
-                <span>INTERACTIVE SCRUB</span>
-                <Maximize2 className="w-3 h-3" />
-              </div>
-            </div>
-
-            {/* Video Player (NO BLUR, Crisp & Clean) */}
-            <div className="relative aspect-[4/3] bg-black overflow-hidden flex items-center justify-center">
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover select-none"
-                style={{ filter: 'none' }} // Strictly NO BLUR
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="metadata"
-                onSeeked={handleSeeked}
-              >
-                <source src={LOCAL_VIDEO_SRC} type="video/mp4" />
-                <source src={REMOTE_VIDEO_SRC} type="video/mp4" />
-              </video>
-
-              {/* Laser scan line sweeping across */}
-              <div className="absolute inset-0 pointer-events-none flex flex-col justify-center z-10">
-                <div className="w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_10px_#22d3ee] animate-scan-laser opacity-80" />
-              </div>
-
-              {/* Bottom Telemetry Ticker */}
-              <div className="absolute bottom-2 left-3 right-3 bg-black/80 backdrop-blur-md rounded-lg px-3 py-1.5 border border-white/10 flex items-center justify-between text-[10px] font-mono text-cyan-300 z-10">
-                <span className="flex items-center gap-1.5">
-                  <Activity className="w-3 h-3 text-cyan-400" /> OPTICAL SENSOR: LOCKED
-                </span>
-                <span>FPS: 60 // RES: 4K UHD</span>
-              </div>
-            </div>
-
-            {/* Monitor Footer Note */}
-            <div className="bg-black/95 px-4 py-2 text-[11px] font-mono text-white/60 flex items-center justify-between">
-              <span>Drag horizontal mouse to scrub footage</span>
-              <span className="text-emerald-400">STATUS: ACTIVE</span>
-            </div>
+            <video
+              ref={videoRef}
+              className="w-full h-auto aspect-[4/3] object-cover select-none block rounded-2xl"
+              style={{ filter: 'none' }}
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              onSeeked={handleSeeked}
+            >
+              <source src={LOCAL_VIDEO_SRC} type="video/mp4" />
+              <source src={REMOTE_VIDEO_SRC} type="video/mp4" />
+            </video>
           </div>
         </div>
       </div>
