@@ -27,4 +27,7 @@ get-cred.ps1
 .env
 .env.*
 !.env.example
-
+# Local Documentation
+SYSTEM_FEATURES_AND_API_DOCUMENTATION.txt
+FEATURES_AND_APIS.txt
+*.txt
