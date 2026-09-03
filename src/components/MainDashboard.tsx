@@ -319,7 +319,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
             </div>
             <div className="pb-2 border-b border-black/10 dark:border-slate-800">
               <span className="opacity-60 block">AI Neural Engine:</span>
-              <span>Gemini 2.5 Flash Cloud (Active)</span>
+              <span>AI Neural Engine (Active)</span>
             </div>
             <div>
               <span className="opacity-60 block">Cryptographic Hash Standard:</span>

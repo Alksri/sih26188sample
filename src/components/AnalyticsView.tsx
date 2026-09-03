@@ -274,7 +274,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ isDark }) => {
           </div>
 
           <div className="mt-4 pt-3 border-t border-black/10 dark:border-slate-800 text-[11px] font-mono opacity-60 flex justify-between">
-            <span>Powered by Gemini 2.5 Flash</span>
+            <span>AI Neural Engine Active</span>
             <span>Zero Queue Congestion</span>
           </div>
         </div>

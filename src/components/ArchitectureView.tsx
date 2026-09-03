@@ -56,7 +56,7 @@ const ARCHITECTURE_COMPONENTS: ComponentDetail[] = [
     summary: 'Converts pixel data into structured JSON intelligence with per-field confidence scores using multimodal transformer OCR.',
     inputs: ['Preprocessed document frame'],
     outputs: ['10 structured fields', 'ICAO Doc 9303 OCR-B glyph matrix'],
-    techStack: 'Google Gemini 2.5 Flash multimodal vision, ICAO Doc 9303 parsing engine',
+    techStack: 'Multimodal Neural Vision, ICAO Doc 9303 parsing engine',
   },
   {
     id: 'validation',

@@ -5,7 +5,6 @@ import {
   Shield,
   User,
   LogOut,
-  Cpu,
   Menu,
   X,
   Sparkles,
@@ -164,17 +163,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
-          {/* Gemini Engine badge (Desktop) */}
-          <div
-            className={`hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono border ${
-              isDark
-                ? 'bg-slate-800/70 border-slate-700 text-cyan-300'
-                : 'bg-black/5 border-black/10 text-black/80'
-            }`}
-          >
-            <Cpu className="w-3.5 h-3.5 text-cyan-500" />
-            <span className="font-semibold">Gemini 2.5</span>
-          </div>
 
           {/* Officer Status (Desktop) */}
           {officer ? (
@@ -344,7 +332,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Telemetry info at bottom of mobile menu */}
             <div className="pt-4 border-t border-black/10 dark:border-slate-800 text-xs font-mono opacity-60 flex justify-between">
-              <span>Engine: Gemini 2.5 Flash</span>
+              <span>Engine: Active</span>
               <span className="text-emerald-500">SYSTEM ONLINE</span>
             </div>
           </div>

@@ -64,10 +64,10 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Handle uploaded file via Gemini 2.5
+  // Handle uploaded file via AI Neural Engine
   const handleFile = async (file: File) => {
     setIsProcessing(true);
-    setProcessingStageText('Normalizing Document Geometry & Transmitting to Gemini 2.5 Cloud...');
+    setProcessingStageText('Normalizing Document Geometry & Transmitting to AI Neural Engine...');
 
     try {
       const reader = new FileReader();
@@ -209,7 +209,7 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
                 <ScanLine className="w-12 h-12 text-cyan-500 animate-spin" />
                 <div className="space-y-1">
                   <div className="font-heading-custom text-lg font-bold">
-                    Analyzing Document via Gemini 2.5 Cloud...
+                    Analyzing Document via AI Neural Engine...
                   </div>
                   <p className="text-xs font-mono opacity-70 max-w-sm">{processingStageText}</p>
                 </div>
