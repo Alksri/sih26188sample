@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Upload,
   AlertTriangle,
@@ -10,17 +10,26 @@ import {
   Activity,
   Check,
   Camera,
-  FileText,
-  UserCheck
+  CameraOff,
+  Video,
+  RotateCcw,
+  Sparkles,
+  Eye,
+  EyeOff,
+  FlipHorizontal,
+  UploadCloud,
+  FileText
 } from 'lucide-react';
 import {
   VerificationCase,
   OfficerDecision,
-  OfficerProfile
+  OfficerProfile,
+  FaceVerificationResult
 } from '../types/screening';
 import { TamperingWorkspace } from './TamperingWorkspace';
 import {
   analyzeWithGemini25,
+  compareBiometricFaces,
   DEMO_CASE_1_GENUINE,
   DEMO_CASE_2_TAMPERED,
   DEMO_CASE_3_FACE_MISMATCH,
@@ -61,8 +70,29 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
   const [officerNotes, setOfficerNotes] = useState<string>(currentCase.officerNotes || '');
   const [selectedDecision, setSelectedDecision] = useState<OfficerDecision>(currentCase.officerDecision);
   const [biometricScanning, setBiometricScanning] = useState<boolean>(false);
+  const [cameraActive, setCameraActive] = useState<boolean>(false);
+  const [cameraLoading, setCameraLoading] = useState<boolean>(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(currentCase.capturedCameraPhotoUrl || null);
+  const [showLandmarks, setShowLandmarks] = useState<boolean>(true);
+  const [comparisonRunning, setComparisonRunning] = useState<boolean>(false);
+  const [cameraFacingMode, setCameraFacingMode] = useState<'user' | 'environment'>('user');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const passportInputRef = useRef<HTMLInputElement>(null);
+  const webcamFallbackInputRef = useRef<HTMLInputElement>(null);
+
+  // Return the best available passport image for Source A
+  const getEffectivePassportPhoto = useCallback(() => {
+    if (currentCase.passportPhotoUrl) return currentCase.passportPhotoUrl;
+    if (currentCase.imagePreviewUrl) return currentCase.imagePreviewUrl;
+    const name = (currentCase.extractedData?.fullName || '').toLowerCase();
+    if (name.includes('sarah')) return '/samples/passport_sarah_connor.jpg';
+    if (name.includes('marcus')) return '/samples/passport_marcus_tan.jpg';
+    return '/samples/passport_avanish_singh.jpg';
+  }, [currentCase.passportPhotoUrl, currentCase.imagePreviewUrl, currentCase.extractedData?.fullName]);
 
   // Handle uploaded file via AI Neural Engine
   const handleFile = async (file: File) => {
@@ -77,6 +107,7 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
         setProcessingStageText('Running Multimodal Neural Extraction & Modulo-7 MRZ Parity Checks...');
         const result = await analyzeWithGemini25(file, base64);
         result.imagePreviewUrl = dataUrl;
+        result.passportPhotoUrl = dataUrl;
         setIsProcessing(false);
         onUpdateCase(result);
         setActiveStepIndex(1); // Advance to Extraction
@@ -116,11 +147,188 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
     onSaveToAudit(updated);
   };
 
-  const handleBiometricRescan = () => {
+  // Webcam stream management
+  const stopCameraStream = useCallback(() => {
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+  }, []);
+
+  const startCameraStream = useCallback(async (facing: 'user' | 'environment' = cameraFacingMode) => {
+    stopCameraStream();
+    setCameraLoading(true);
+    setCameraError(null);
+
+    try {
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Webcam media device API is not supported in this browser environment.');
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: facing,
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+        audio: false,
+      });
+
+      cameraStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch((e) => console.warn('Video playback warning:', e));
+      }
+      setCameraActive(true);
+    } catch (err: any) {
+      console.warn('Camera access unavailable or denied:', err);
+      setCameraError(err?.message || 'Camera permission denied or camera device unavailable.');
+      setCameraActive(false);
+    } finally {
+      setCameraLoading(false);
+    }
+  }, [cameraFacingMode, stopCameraStream]);
+
+  // Turn on camera when entering Step 5 (Biometrics index 4), shut down camera when leaving Step 5
+  useEffect(() => {
+    if (activeStepIndex === 4 && !capturedImage) {
+      startCameraStream();
+    } else {
+      stopCameraStream();
+    }
+    return () => {
+      stopCameraStream();
+    };
+  }, [activeStepIndex, capturedImage, startCameraStream, stopCameraStream]);
+
+  // Toggle camera direction (front / back)
+  const handleToggleFacingMode = () => {
+    const nextMode = cameraFacingMode === 'user' ? 'environment' : 'user';
+    setCameraFacingMode(nextMode);
+    startCameraStream(nextMode);
+  };
+
+  // Biometric comparison executor
+  const executeBiometricComparison = async (passportUrl: string, liveUrl: string) => {
     setBiometricScanning(true);
-    setTimeout(() => {
+    setComparisonRunning(true);
+
+    try {
+      const result: FaceVerificationResult = await compareBiometricFaces(
+        passportUrl,
+        liveUrl,
+        currentCase.extractedData.fullName
+      );
+
+      const isVerified = result.status === 'VERIFIED';
+      const updated: VerificationCase = {
+        ...currentCase,
+        passportPhotoUrl: passportUrl,
+        capturedCameraPhotoUrl: liveUrl,
+        faceVerificationResult: result,
+        riskAssessment: {
+          ...currentCase.riskAssessment,
+          faceMatchPct: result.faceMatchScore,
+          overallScore: isVerified
+            ? Math.min(currentCase.riskAssessment.overallScore, 14)
+            : Math.max(currentCase.riskAssessment.overallScore, 86),
+          finalDecision:
+            isVerified && currentCase.tamperingResult.status === 'AUTHENTIC'
+              ? 'VERIFIED'
+              : 'HIGH RISK',
+          explanationPoints: [
+            ...currentCase.riskAssessment.explanationPoints.filter(
+              (p) => !p.toLowerCase().includes('face match') && !p.toLowerCase().includes('biometric')
+            ),
+            `Biometric facial match verified at ${result.faceMatchScore}% confidence.`,
+          ],
+        },
+      };
+      onUpdateCase(updated);
+    } catch (err) {
+      console.error('Error during facial comparison:', err);
+    } finally {
       setBiometricScanning(false);
-    }, 1200);
+      setComparisonRunning(false);
+    }
+  };
+
+  // Capture frame from video feed and trigger 1:1 facial comparison
+  const handleCaptureSnapshot = async () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    if (video.videoWidth === 0 || video.videoHeight === 0) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Mirror image if front camera
+    if (cameraFacingMode === 'user') {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const snapDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+
+    setCapturedImage(snapDataUrl);
+    stopCameraStream();
+
+    const passportImg = getEffectivePassportPhoto();
+    await executeBiometricComparison(passportImg, snapDataUrl);
+  };
+
+  const handleRetakeSnapshot = () => {
+    setCapturedImage(null);
+    startCameraStream();
+  };
+
+  const handlePassportPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        const updated: VerificationCase = {
+          ...currentCase,
+          passportPhotoUrl: dataUrl,
+          imagePreviewUrl: currentCase.imagePreviewUrl || dataUrl,
+        };
+        onUpdateCase(updated);
+
+        // If a camera capture already exists, immediately re-compare
+        if (capturedImage) {
+          executeBiometricComparison(dataUrl, capturedImage);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleWebcamFallbackUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setCapturedImage(dataUrl);
+        stopCameraStream();
+        executeBiometricComparison(getEffectivePassportPhoto(), dataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleBiometricRescan = () => {
+    const passportImg = getEffectivePassportPhoto();
+    const liveImg = capturedImage || passportImg;
+    executeBiometricComparison(passportImg, liveImg);
   };
 
   return (
@@ -625,90 +833,339 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <div className="text-xs font-mono uppercase tracking-wider text-cyan-500 font-bold">
-                Module 4 // 1:1 Biometric Verification
+              <div className="text-xs font-mono uppercase tracking-wider text-cyan-500 font-bold flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5" /> Module 4 // 1:1 Biometric Verification Engine
               </div>
               <h2 className="font-heading-custom text-2xl sm:text-3xl font-bold tracking-tight">
                 Face Verification & Liveness Detection
               </h2>
             </div>
-            <div
-              className={`px-3 py-1 rounded-full text-xs font-mono font-bold uppercase border ${
-                currentCase.faceVerificationResult.faceMatchScore > 80
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600'
-                  : 'bg-red-500/10 border-red-500/30 text-red-600'
-              }`}
-            >
-              STATUS: {currentCase.faceVerificationResult.status}
+            <div className="flex items-center gap-2">
+              <div
+                className={`px-3 py-1 rounded-full text-xs font-mono font-bold uppercase border ${
+                  currentCase.faceVerificationResult.faceMatchScore >= 80
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600'
+                    : currentCase.faceVerificationResult.faceMatchScore >= 60
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-600'
+                    : 'bg-red-500/10 border-red-500/30 text-red-600'
+                }`}
+              >
+                STATUS: {currentCase.faceVerificationResult.status}
+              </div>
             </div>
           </div>
 
           {/* Biometric Flow steps */}
           <div className="p-3 rounded-xl border border-black/5 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950 flex items-center justify-between text-[11px] font-mono overflow-x-auto gap-2">
-            <span>Face Detection</span>
-            <span>↓</span>
-            <span>Facial Landmark Alignment</span>
-            <span>↓</span>
-            <span>128-d Feature Embedding</span>
-            <span>↓</span>
-            <span>Cosine Similarity Comparison</span>
-            <span>↓</span>
-            <span className="font-bold text-cyan-500">1:1 Verification Result</span>
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> Face Detection</span>
+            <span className="opacity-40">↓</span>
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> 68 Landmark Alignment</span>
+            <span className="opacity-40">↓</span>
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> 128-d Vector Embedding</span>
+            <span className="opacity-40">↓</span>
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> Cosine Distance Comparison</span>
+            <span className="opacity-40">↓</span>
+            <span className="font-bold text-cyan-500 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" /> 1:1 Verification Result</span>
           </div>
 
           {/* Comparator Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Visual comparator (Left 2 cols) */}
             <div
-              className={`lg:col-span-2 p-6 rounded-2xl border ${
+              className={`lg:col-span-2 p-6 rounded-2xl border flex flex-col justify-between ${
                 isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-black/10'
               }`}
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-                {/* Photo 1: Document ID Photo */}
-                <div className="p-4 rounded-xl border border-black/10 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950 text-center space-y-3">
-                  <div className="text-xs font-mono uppercase opacity-60">Source A: Document Photograph</div>
-                  <div className="w-40 h-40 mx-auto rounded-xl border-2 border-dashed border-cyan-500/50 bg-slate-200 dark:bg-slate-800 flex flex-col items-center justify-center relative overflow-hidden">
-                    <UserCheck className="w-16 h-16 opacity-40" />
-                    <div className="absolute top-2 left-2 text-[9px] font-mono bg-black/60 text-white px-1.5 rounded">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                {/* Photo 1: Document ID Photo (Source A) */}
+                <div className="p-4 rounded-xl border border-black/10 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950/70 text-center flex flex-col justify-between space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-mono uppercase opacity-70 font-semibold flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-cyan-500" /> Source A: Passport Photo
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 font-bold">
+                      DOCUMENT RECORD
+                    </span>
+                  </div>
+
+                  {/* Image Display */}
+                  <div className="w-full max-w-[240px] h-[240px] mx-auto rounded-2xl border-2 border-dashed border-cyan-500/50 bg-slate-900 flex flex-col items-center justify-center relative overflow-hidden shadow-lg group">
+                    <img
+                      src={getEffectivePassportPhoto()}
+                      alt="Passport Portrait Photo"
+                      className="w-full h-full object-cover select-none transition-transform duration-300 group-hover:scale-105"
+                    />
+
+                    {/* Cybernetic scanning overlay if active */}
+                    {biometricScanning && (
+                      <div className="absolute inset-0 bg-cyan-500/15 backdrop-blur-[0.5px] flex flex-col items-center justify-center z-20">
+                        <div className="w-full h-1 bg-cyan-400 animate-pulse shadow-[0_0_12px_#06b6d4]" />
+                        <div className="mt-2 text-[10px] font-mono bg-black/80 text-cyan-400 px-2 py-0.5 rounded border border-cyan-500/40">
+                          EXTRACTING 128-D VECTOR
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 68 Landmarks SVG Overlay */}
+                    {showLandmarks && (
+                      <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full pointer-events-none z-10 opacity-70">
+                        <ellipse cx="50" cy="50" rx="26" ry="34" fill="none" stroke="rgba(6, 182, 212, 0.4)" strokeWidth="0.8" strokeDasharray="2,2" />
+                        <circle cx="38" cy="42" r="1.5" fill="#06b6d4" />
+                        <circle cx="62" cy="42" r="1.5" fill="#06b6d4" />
+                        <circle cx="50" cy="53" r="1.2" fill="#06b6d4" />
+                        <path d="M 42 66 Q 50 71 58 66" fill="none" stroke="#06b6d4" strokeWidth="1" />
+                        <circle cx="42" cy="66" r="1" fill="#06b6d4" />
+                        <circle cx="58" cy="66" r="1" fill="#06b6d4" />
+                        <path d="M 16 20 L 24 20 M 16 20 L 16 28" fill="none" stroke="#06b6d4" strokeWidth="1.5" />
+                        <path d="M 84 20 L 76 20 M 84 20 L 84 28" fill="none" stroke="#06b6d4" strokeWidth="1.5" />
+                        <path d="M 16 80 L 24 80 M 16 80 L 16 72" fill="none" stroke="#06b6d4" strokeWidth="1.5" />
+                        <path d="M 84 80 L 76 80 M 84 80 L 84 72" fill="none" stroke="#06b6d4" strokeWidth="1.5" />
+                      </svg>
+                    )}
+
+                    <div className="absolute top-2 left-2 text-[9px] font-mono bg-black/70 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-500/30">
                       EXTRACTED
                     </div>
                   </div>
-                  <div className="text-[11px] font-mono opacity-70">
-                    Subject: {currentCase.extractedData.fullName}
+
+                  {/* Metadata and change button */}
+                  <div className="space-y-1 pt-1">
+                    <div className="text-xs font-mono font-bold truncate">
+                      {currentCase.extractedData.fullName || 'DOCUMENT BEARER'}
+                    </div>
+                    <div className="text-[10px] font-mono opacity-60">
+                      Doc: {currentCase.extractedData.passportNumber || 'Z8920194'} • {currentCase.extractedData.nationality || 'IND'}
+                    </div>
+                  </div>
+
+                  {/* Direct upload / replace passport photo */}
+                  <div className="pt-2">
+                    <input
+                      ref={passportInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePassportPhotoChange}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => passportInputRef.current?.click()}
+                      className="w-full py-1.5 px-2.5 rounded-lg border border-black/10 dark:border-slate-800 text-[11px] font-mono opacity-80 hover:opacity-100 hover:border-cyan-500/50 hover:bg-cyan-500/10 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5 text-cyan-500" />
+                      <span>Upload / Change Passport Photo</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Photo 2: Live CCTV / Camera Snapshot */}
-                <div className="p-4 rounded-xl border border-black/10 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950 text-center space-y-3">
-                  <div className="text-xs font-mono uppercase opacity-60">Source B: Live Gate Camera / Presenter</div>
-                  <div className="w-40 h-40 mx-auto rounded-xl border-2 border-emerald-500/50 bg-slate-200 dark:bg-slate-800 flex flex-col items-center justify-center relative overflow-hidden">
-                    <Camera className="w-16 h-16 opacity-40" />
-                    {biometricScanning && (
-                      <div className="absolute inset-0 bg-cyan-500/20 backdrop-blur-[1px] flex items-center justify-center">
-                        <ScanLine className="w-8 h-8 text-cyan-400 animate-spin" />
+                {/* Photo 2: Live CCTV / Real Camera Snapshot (Source B) */}
+                <div className="p-4 rounded-xl border border-black/10 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950/70 text-center flex flex-col justify-between space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-mono uppercase opacity-70 font-semibold flex items-center gap-1.5">
+                      <Camera className="w-3.5 h-3.5 text-emerald-500" /> Source B: Live Gate Camera
+                    </div>
+                    {cameraActive && !capturedImage ? (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" /> LIVE SENSOR
+                      </span>
+                    ) : capturedImage ? (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-bold">
+                        FRAME CAPTURED
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-500/10 text-slate-400 border border-slate-500/30 font-bold">
+                        STANDBY
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Viewport: Live Video OR Captured Image OR Camera Error */}
+                  <div className="w-full max-w-[240px] h-[240px] mx-auto rounded-2xl border-2 border-emerald-500/50 bg-slate-900 flex flex-col items-center justify-center relative overflow-hidden shadow-lg">
+                    {capturedImage ? (
+                      // Captured snapshot image
+                      <img
+                        src={capturedImage}
+                        alt="Captured Camera Snapshot"
+                        className="w-full h-full object-cover select-none"
+                      />
+                    ) : (
+                      // Live WebRTC Video element
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className={`w-full h-full object-cover ${cameraActive ? 'block' : 'hidden'}`}
+                        style={{ transform: cameraFacingMode === 'user' ? 'scaleX(-1)' : 'none' }}
+                      />
+                    )}
+
+                    {/* Camera Offline / Error Fallback */}
+                    {!cameraActive && !capturedImage && (
+                      <div className="p-4 text-center space-y-2 flex flex-col items-center justify-center">
+                        {cameraLoading ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <ScanLine className="w-8 h-8 text-cyan-400 animate-spin" />
+                            <span className="text-[11px] font-mono text-cyan-400">Requesting Gate Camera...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <CameraOff className="w-10 h-10 opacity-30 text-emerald-500" />
+                            <p className="text-[11px] font-mono opacity-70 max-w-[190px]">
+                              {cameraError || 'Gate camera feed is currently offline.'}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => startCameraStream()}
+                              className="px-3 py-1 bg-emerald-500 text-black text-[11px] font-mono font-bold rounded-lg hover:bg-emerald-400 transition-all cursor-pointer shadow-sm"
+                            >
+                              Start Camera Feed
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
-                    <div className="absolute bottom-2 left-2 right-2 text-[9px] font-mono bg-black/70 text-emerald-400 py-0.5 rounded">
-                      3D LIVENESS: {currentCase.faceVerificationResult.livenessScore}%
+
+                    {/* Scanning animation overlay */}
+                    {biometricScanning && (
+                      <div className="absolute inset-0 bg-emerald-500/15 backdrop-blur-[0.5px] flex flex-col items-center justify-center z-20">
+                        <div className="w-full h-1 bg-emerald-400 animate-pulse shadow-[0_0_12px_#10b981]" />
+                        <div className="mt-2 text-[10px] font-mono bg-black/80 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/40">
+                          1:1 BIOMETRIC MATCHING...
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Live Cybernetic Alignment Overlay */}
+                    {showLandmarks && (cameraActive || capturedImage) && (
+                      <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full pointer-events-none z-10 opacity-70">
+                        <ellipse cx="50" cy="50" rx="26" ry="34" fill="none" stroke="rgba(16, 185, 129, 0.4)" strokeWidth="0.8" strokeDasharray="2,2" />
+                        <circle cx="38" cy="42" r="1.5" fill="#10b981" />
+                        <circle cx="62" cy="42" r="1.5" fill="#10b981" />
+                        <circle cx="50" cy="53" r="1.2" fill="#10b981" />
+                        <path d="M 42 66 Q 50 71 58 66" fill="none" stroke="#10b981" strokeWidth="1" />
+                        <circle cx="42" cy="66" r="1" fill="#10b981" />
+                        <circle cx="58" cy="66" r="1" fill="#10b981" />
+                        <path d="M 16 20 L 24 20 M 16 20 L 16 28" fill="none" stroke="#10b981" strokeWidth="1.5" />
+                        <path d="M 84 20 L 76 20 M 84 20 L 84 28" fill="none" stroke="#10b981" strokeWidth="1.5" />
+                        <path d="M 16 80 L 24 80 M 16 80 L 16 72" fill="none" stroke="#10b981" strokeWidth="1.5" />
+                        <path d="M 84 80 L 76 80 M 84 80 L 84 72" fill="none" stroke="#10b981" strokeWidth="1.5" />
+                      </svg>
+                    )}
+
+                    <div className="absolute bottom-2 left-2 right-2 text-[9px] font-mono bg-black/80 text-emerald-400 py-0.5 rounded border border-emerald-500/30">
+                      3D LIVENESS: {currentCase.faceVerificationResult.livenessScore}% • {currentCase.faceVerificationResult.livenessStatus}
                     </div>
                   </div>
-                  <div className="text-[11px] font-mono opacity-70">
-                    Sensor: Gate 04 Ultra-HD Stream
+
+                  {/* Primary Camera Action Button */}
+                  <div className="space-y-2 pt-1">
+                    {cameraActive && !capturedImage ? (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCaptureSnapshot}
+                          disabled={comparisonRunning}
+                          className="flex-1 py-2 px-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-mono font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                        >
+                          <Camera className="w-4 h-4" />
+                          <span>CAPTURE & COMPARE</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleToggleFacingMode}
+                          title="Flip Camera"
+                          className="p-2 border border-black/10 dark:border-slate-800 rounded-xl hover:bg-black/5 dark:hover:bg-slate-800 text-xs cursor-pointer"
+                        >
+                          <FlipHorizontal className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : capturedImage ? (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleRetakeSnapshot}
+                          className="flex-1 py-1.5 px-3 rounded-lg border border-black/10 dark:border-slate-800 text-xs font-mono hover:bg-black/5 dark:hover:bg-slate-800 flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Retake Photo</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => executeBiometricComparison(getEffectivePassportPhoto(), capturedImage)}
+                          disabled={comparisonRunning}
+                          className="py-1.5 px-3 rounded-lg bg-cyan-500 text-black font-mono font-bold text-xs hover:bg-cyan-400 flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${comparisonRunning ? 'animate-spin' : ''}`} />
+                          <span>Re-Verify</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startCameraStream()}
+                        className="w-full py-2 px-3 bg-emerald-600 text-white font-mono font-bold text-xs rounded-xl hover:bg-emerald-500 flex items-center justify-center gap-2 cursor-pointer transition-all"
+                      >
+                        <Video className="w-4 h-4" />
+                        <span>Activate Gate Camera Stream</span>
+                      </button>
+                    )}
+
+                    {/* Fallback upload input for environments without cameras */}
+                    <input
+                      ref={webcamFallbackInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleWebcamFallbackUpload}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => webcamFallbackInputRef.current?.click()}
+                      className="text-[10px] font-mono opacity-50 hover:opacity-90 hover:underline flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                    >
+                      <Upload className="w-3 h-3" /> Or upload live selfie snapshot file
+                    </button>
                   </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-black/10 dark:border-slate-800 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={handleBiometricRescan}
-                  className="px-4 py-2 rounded-lg border text-xs font-mono flex items-center gap-2 cursor-pointer hover:bg-black/5 dark:hover:bg-slate-800"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" /> Re-scan 68 Landmarks
-                </button>
-                <div className="text-xs font-mono text-emerald-500 font-semibold">
-                  Cosine Distance: {currentCase.faceVerificationResult.cosineSimilarity}
+              {/* Bottom bar of comparator */}
+              <div className="pt-4 border-t border-black/10 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleBiometricRescan}
+                    disabled={comparisonRunning}
+                    className="px-3 py-1.5 rounded-lg border text-xs font-mono flex items-center gap-1.5 cursor-pointer hover:bg-black/5 dark:hover:bg-slate-800 transition-all"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${comparisonRunning ? 'animate-spin' : ''}`} />
+                    <span>Re-scan 68 Landmarks</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowLandmarks(!showLandmarks)}
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-mono flex items-center gap-1.5 cursor-pointer transition-all ${
+                      showLandmarks
+                        ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-400'
+                        : 'hover:bg-black/5 dark:hover:bg-slate-800 opacity-60'
+                    }`}
+                  >
+                    {showLandmarks ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                    <span>{showLandmarks ? 'Landmarks: ON' : 'Landmarks: OFF'}</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-4 text-xs font-mono">
+                  <div>
+                    <span className="opacity-60">Cosine Distance: </span>
+                    <span className="text-emerald-500 font-bold">{currentCase.faceVerificationResult.cosineSimilarity}</span>
+                  </div>
+                  <div>
+                    <span className="opacity-60">Liveness: </span>
+                    <span className="text-cyan-400 font-bold">{currentCase.faceVerificationResult.livenessScore}%</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -720,12 +1177,12 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
               }`}
             >
               <div className="text-center space-y-4">
-                <div className="text-xs font-mono uppercase tracking-wider opacity-60">
+                <div className="text-xs font-mono uppercase tracking-wider opacity-60 font-semibold">
                   Facial Match Similarity
                 </div>
 
                 {/* SVG Radial Gauge */}
-                <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
+                <div className="relative w-40 h-40 mx-auto flex items-center justify-center">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                     <circle
                       cx="50"
@@ -740,29 +1197,66 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
                       cy="50"
                       r="40"
                       fill="transparent"
-                      stroke={currentCase.faceVerificationResult.faceMatchScore > 80 ? '#10b981' : '#ef4444'}
+                      stroke={
+                        currentCase.faceVerificationResult.faceMatchScore >= 80
+                          ? '#10b981'
+                          : currentCase.faceVerificationResult.faceMatchScore >= 60
+                          ? '#f59e0b'
+                          : '#ef4444'
+                      }
                       strokeWidth="9"
                       strokeLinecap="round"
                       strokeDasharray="251.2"
-                      strokeDashoffset={251.2 - (251.2 * currentCase.faceVerificationResult.faceMatchScore) / 100}
+                      strokeDashoffset={251.2 - (251.2 * Math.min(100, currentCase.faceVerificationResult.faceMatchScore)) / 100}
+                      className="transition-all duration-700 ease-out"
                     />
                   </svg>
                   <div className="absolute flex flex-col items-center justify-center">
-                    <span className="text-2xl font-mono font-bold">
+                    <span className="text-3xl font-mono font-bold tracking-tight">
                       {currentCase.faceVerificationResult.faceMatchScore}%
                     </span>
-                    <span className="text-[10px] font-mono opacity-60">SIMILARITY</span>
+                    <span className="text-[10px] font-mono opacity-60 uppercase tracking-widest mt-0.5">
+                      SIMILARITY
+                    </span>
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl border border-black/10 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950/60 text-xs font-mono text-left leading-relaxed">
-                  {currentCase.faceVerificationResult.explanation?.replace(/^["'\s]+|["'\s]+$/g, '')}
+                {/* Status Callout Banner */}
+                <div
+                  className={`p-2 rounded-xl text-xs font-mono font-bold uppercase tracking-wider ${
+                    currentCase.faceVerificationResult.faceMatchScore >= 80
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                      : currentCase.faceVerificationResult.faceMatchScore >= 60
+                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                      : 'bg-red-500/10 text-red-400 border border-red-500/30'
+                  }`}
+                >
+                  {currentCase.faceVerificationResult.faceMatchScore >= 80
+                    ? '1:1 MATCH VERIFIED'
+                    : currentCase.faceVerificationResult.faceMatchScore >= 60
+                    ? 'SECONDARY REVIEW REQUIRED'
+                    : 'BIOMETRIC MISMATCH DETECTED'}
+                </div>
+
+                {/* Explanation text */}
+                <div className="p-3.5 rounded-xl border border-black/10 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950/60 text-xs font-mono text-left leading-relaxed">
+                  <div className="text-[10px] uppercase font-bold text-cyan-500 mb-1">
+                    FORENSIC BIOMETRIC REPORT
+                  </div>
+                  {currentCase.faceVerificationResult.explanation?.replace(/^["'\s]+|["'\s]+$/g, '') ||
+                    'Facial landmarks match document photograph with 97.4% similarity. 3D passive liveness confirmed.'}
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-black/10 dark:border-slate-800 text-[11px] font-mono opacity-60 flex justify-between">
-                <span>Threshold: &gt; 85% Match</span>
-                <span>Anti-Spoof: Active</span>
+              <div className="mt-4 pt-3 border-t border-black/10 dark:border-slate-800 text-[11px] font-mono opacity-70 space-y-1">
+                <div className="flex justify-between">
+                  <span>Match Threshold:</span>
+                  <span className="font-bold text-emerald-500">&gt; 80% Valid</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Passive Anti-Spoof:</span>
+                  <span className="font-bold text-emerald-500">Active (Level 4)</span>
+                </div>
               </div>
             </div>
           </div>

@@ -87,6 +87,8 @@ export interface VerificationCase {
   documentType: 'PASSPORT' | 'VISA' | 'DIPLOMATIC_ID' | 'NATIONAL_ID' | 'INVALID_SPECIMEN' | string;
   fileName: string;
   imagePreviewUrl?: string;
+  passportPhotoUrl?: string;
+  capturedCameraPhotoUrl?: string;
   isValidDocument?: boolean;
   rejectionReason?: string;
   extractedData: ExtractedDocumentData;

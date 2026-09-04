@@ -398,6 +398,38 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
                 </div>
               </div>
 
+              {/* Biometric Photo Pair Preview */}
+              {(selectedCaseForModal.passportPhotoUrl || selectedCaseForModal.imagePreviewUrl) && (
+                <div className="p-3 rounded-xl border border-black/10 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950/60 flex items-center justify-around gap-4 text-center">
+                  <div>
+                    <div className="text-[9px] uppercase font-mono opacity-60 mb-1 font-semibold">Source A: Passport Photo</div>
+                    <img
+                      src={selectedCaseForModal.passportPhotoUrl || selectedCaseForModal.imagePreviewUrl}
+                      alt="Passport Portrait"
+                      className="w-16 h-16 rounded-xl object-cover border-2 border-cyan-500/50 shadow-sm mx-auto"
+                    />
+                  </div>
+                  <div className="text-center font-mono text-xs font-bold text-cyan-500">
+                    <div>1:1 MATCH</div>
+                    <div className="text-sm">{selectedCaseForModal.faceVerificationResult.faceMatchScore}%</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] uppercase font-mono opacity-60 mb-1 font-semibold">Source B: Live Gate Capture</div>
+                    {selectedCaseForModal.capturedCameraPhotoUrl ? (
+                      <img
+                        src={selectedCaseForModal.capturedCameraPhotoUrl}
+                        alt="Gate Camera Capture"
+                        className="w-16 h-16 rounded-xl object-cover border-2 border-emerald-500/50 shadow-sm mx-auto"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-[10px] font-mono opacity-50 mx-auto border border-dashed border-slate-600">
+                        Preset
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Final Assessment */}
               <div className="p-4 rounded-xl border border-black/10 dark:border-slate-800 bg-black/[0.02] dark:bg-slate-950 flex items-center justify-between">
                 <div>
