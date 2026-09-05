@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Shield, Lock, User, Key, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Shield, Lock, User, Key, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 import { OfficerProfile } from '../types/screening';
+import { authenticateOfficer, AUTHORIZED_OFFICERS_REGISTRY } from '../services/authService';
 
 interface OfficerLoginProps {
   onLoginSuccess: (officer: OfficerProfile) => void;
@@ -22,37 +23,25 @@ export const OfficerLogin: React.FC<OfficerLoginProps> = ({ onLoginSuccess, isDa
       return;
     }
     if (!password.trim()) {
-      setErrorMsg('Please enter your access security credential.');
+      setErrorMsg('Please enter your access security passcode.');
       return;
     }
 
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      onLoginSuccess({
-        id: officerId,
-        name: officerId.toLowerCase().includes('sharma') ? 'Insp. Rajesh Sharma' : 'Officer ' + officerId,
-        badgeNumber: 'MHA-INSP-8492',
-        checkpointLocation: 'Indira Gandhi Int’l Airport (DEL-T3)',
-        clearanceLevel: 'LEVEL-4 TOP SECRET (IMMIGRATION & BORDER INTELLIGENCE)',
-      });
-    }, 600);
+      const authResult = authenticateOfficer(officerId, password);
+      if (authResult.success && authResult.officer) {
+        onLoginSuccess(authResult.officer);
+      } else {
+        setErrorMsg(authResult.error || 'Authentication failed. Please verify credentials.');
+      }
+    }, 450);
   };
 
-  const handleQuickDemoLogin = () => {
-    setOfficerId('MHA-INSP-8492');
-    setPassword('••••••••••••');
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      onLoginSuccess({
-        id: 'MHA-INSP-8492',
-        name: 'Insp. Rajesh Sharma',
-        badgeNumber: 'MHA-INSP-8492',
-        checkpointLocation: 'Indira Gandhi Int’l Airport (DEL-T3)',
-        clearanceLevel: 'LEVEL-4 TOP SECRET (IMMIGRATION & BORDER INTELLIGENCE)',
-      });
-    }, 400);
+  const handleSelectOfficerPill = (id: string) => {
+    setOfficerId(id);
+    setErrorMsg('');
   };
 
   return (
@@ -94,49 +83,83 @@ export const OfficerLogin: React.FC<OfficerLoginProps> = ({ onLoginSuccess, isDa
         </div>
 
         {errorMsg && (
-          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-mono flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{errorMsg}</span>
+          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-mono flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span className="leading-snug">{errorMsg}</span>
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-mono uppercase tracking-wider mb-1.5 opacity-70">
-              Officer ID
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-mono uppercase tracking-wider opacity-70">
+                Officer ID
+              </label>
+              <span className="text-[10px] font-mono opacity-50">hardik / kshama / alkesh</span>
+            </div>
             <div className="relative">
               <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
               <input
                 type="text"
                 value={officerId}
                 onChange={(e) => setOfficerId(e.target.value)}
-                placeholder="e.g. MHA-INSP-8492"
+                placeholder="e.g. hardik, kshama, or alkesh"
                 className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm font-mono focus:outline-none transition-colors ${
                   isDark
-                    ? 'bg-slate-950 border-slate-700 focus:border-cyan-400 text-white'
+                    ? 'bg-slate-900 border-slate-700 focus:border-cyan-400 text-white'
                     : 'bg-slate-50 border-black/15 focus:border-black text-black'
                 }`}
+                autoComplete="username"
               />
+            </div>
+
+            {/* Quick Officer Selector Pills */}
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className="text-[10px] font-mono opacity-50">Select:</span>
+              {Object.keys(AUTHORIZED_OFFICERS_REGISTRY).map((key) => {
+                const entry = AUTHORIZED_OFFICERS_REGISTRY[key];
+                const isSelected = officerId.toLowerCase().trim() === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => handleSelectOfficerPill(key)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-mono border transition-all cursor-pointer ${
+                      isSelected
+                        ? isDark
+                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 font-semibold'
+                          : 'bg-black text-white border-black'
+                        : isDark
+                        ? 'border-slate-800 hover:border-slate-700 bg-slate-950/60 text-slate-300'
+                        : 'border-black/10 hover:border-black/25 bg-black/[0.02] text-black/70'
+                    }`}
+                  >
+                    {entry.name.replace('Officer ', '')}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-mono uppercase tracking-wider mb-1.5 opacity-70">
-              Passcode / Cryptographic Key
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-mono uppercase tracking-wider opacity-70">
+                Passcode / Security Key
+              </label>
+            </div>
             <div className="relative">
               <Key className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 opacity-40" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder="Enter 10-digit passcode"
                 className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm font-mono focus:outline-none transition-colors ${
                   isDark
-                    ? 'bg-slate-950 border-slate-700 focus:border-cyan-400 text-white'
+                    ? 'bg-slate-900 border-slate-700 focus:border-cyan-400 text-white'
                     : 'bg-slate-50 border-black/15 focus:border-black text-black'
                 }`}
+                autoComplete="current-password"
               />
             </div>
           </div>
@@ -144,32 +167,25 @@ export const OfficerLogin: React.FC<OfficerLoginProps> = ({ onLoginSuccess, isDa
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-3 rounded-xl font-semibold text-sm transition-all cursor-pointer shadow-md active:scale-95 disabled:opacity-50 ${
+            className={`w-full py-3 rounded-xl font-semibold text-sm transition-all cursor-pointer shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 ${
               isDark
                 ? 'bg-cyan-500 text-black hover:bg-cyan-400'
                 : 'bg-black text-white hover:bg-gray-800'
             }`}
           >
-            {loading ? 'Authenticating Security Token...' : 'Sign In to Clearance Terminal'}
+            <Sparkles className="w-4 h-4" />
+            <span>{loading ? 'Verifying Security Token...' : 'Sign In to Clearance Terminal'}</span>
           </button>
         </form>
 
-        {/* Quick Demo Button */}
-        <div className="mt-6 pt-5 border-t border-black/10 dark:border-slate-800 text-center">
-          <button
-            type="button"
-            onClick={handleQuickDemoLogin}
-            className={`w-full py-2 px-3 rounded-lg border text-xs font-mono transition-colors cursor-pointer flex items-center justify-center gap-2 ${
-              isDark
-                ? 'border-slate-700 hover:bg-slate-800 text-cyan-400'
-                : 'border-black/15 hover:bg-black/5 text-black/80'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5" />
-            <span>One-Click Hackathon Evaluator Login</span>
-          </button>
+        {/* Security Notice */}
+        <div className="mt-6 pt-4 border-t border-black/10 dark:border-slate-800 text-center">
+          <p className="text-[11px] font-mono opacity-60">
+            Protected under Ministry of Home Affairs Protocol. Only authorized personnel possessing valid credentials can access this portal.
+          </p>
         </div>
       </div>
     </div>
   );
 };
+

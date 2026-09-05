@@ -9,6 +9,10 @@ import {
   DEMO_CASE_2_TAMPERED,
   DEMO_CASE_3_FACE_MISMATCH
 } from './services/aiEngine';
+import {
+  getStoredOfficerSession,
+  clearOfficerSession
+} from './services/authService';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 
@@ -34,18 +38,14 @@ const ArchitectureView = lazy(() =>
 
 export default function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  
+  // Officer session persisted in localStorage
+  const [officer, setOfficer] = useState<OfficerProfile | null>(() => getStoredOfficerSession());
+
+  // Default to 'dashboard' if logged in, otherwise strictly 'login'
   const [activeView, setActiveView] = useState<
     'hero' | 'login' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture'
-  >('hero');
-
-  // Default logged in officer (or can log out)
-  const [officer, setOfficer] = useState<OfficerProfile | null>({
-    id: 'MHA-INSP-8492',
-    name: 'Insp. Rajesh Sharma',
-    badgeNumber: 'MHA-INSP-8492',
-    checkpointLocation: 'Delhi Int’l Airport (DEL-T3)',
-    clearanceLevel: 'LEVEL-4 TOP SECRET (BORDER INTELLIGENCE)',
-  });
+  >(() => (getStoredOfficerSession() ? 'dashboard' : 'login'));
 
   // Current active case being screened
   const [currentCase, setCurrentCase] = useState<VerificationCase>(DEMO_CASE_1_GENUINE);
@@ -62,6 +62,10 @@ export default function App() {
   };
 
   const handleSelectDemoCase = (caseType: 'genuine' | 'tampered' | 'mismatch') => {
+    if (!officer) {
+      setActiveView('login');
+      return;
+    }
     if (caseType === 'genuine') {
       setCurrentCase({ ...DEMO_CASE_1_GENUINE, timestamp: new Date().toISOString() });
     } else if (caseType === 'tampered') {
@@ -95,6 +99,21 @@ export default function App() {
     }
   }, [isDark]);
 
+  // Strict access guard: unauthenticated users cannot access internal views
+  const handleNavigate = (view: 'hero' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'login') => {
+    if (!officer && view !== 'login') {
+      setActiveView('login');
+      return;
+    }
+    setActiveView(view);
+  };
+
+  const handleLogout = () => {
+    clearOfficerSession();
+    setOfficer(null);
+    setActiveView('login');
+  };
+
   return (
     <div
       className={`min-h-screen transition-colors duration-500 relative font-body-custom ${
@@ -104,43 +123,26 @@ export default function App() {
 
       {/* Top Navbar */}
       <Navbar
-        currentView={activeView}
-        onNavigate={(view) => setActiveView(view)}
+        currentView={officer ? activeView : 'login'}
+        onNavigate={handleNavigate}
         theme={theme}
         onToggleTheme={toggleTheme}
         officer={officer}
-        onLogout={() => {
-          setOfficer(null);
-          setActiveView('login');
-        }}
+        onLogout={handleLogout}
       />
 
       {/* Main View Router */}
       <main className="relative z-10">
-        {/* VIEW 1: HERO LANDING (Immediately rendered, zero latency) */}
-        {activeView === 'hero' && (
-          <HeroSection
-            onStartVerification={() => {
-              if (officer) setActiveView('dashboard');
-              else setActiveView('login');
-            }}
-            onExploreTech={() => setActiveView('architecture')}
-            onSelectDemoCase={handleSelectDemoCase}
-            isDark={isDark}
-          />
-        )}
-
-        {/* Dynamic Views wrapped in Suspense */}
-        <Suspense
-          fallback={
-            <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3 text-xs font-mono">
-              <ScanLine className="w-6 h-6 text-cyan-500 animate-spin" />
-              <span className="opacity-70">Loading Aegis Security Module...</span>
-            </div>
-          }
-        >
-          {/* VIEW 2: OFFICER LOGIN */}
-          {activeView === 'login' && (
+        {/* If not authenticated, always display the Officer Login portal */}
+        {!officer ? (
+          <Suspense
+            fallback={
+              <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3 text-xs font-mono">
+                <ScanLine className="w-6 h-6 text-cyan-500 animate-spin" />
+                <span className="opacity-70">Securing Terminal Gateway...</span>
+              </div>
+            }
+          >
             <OfficerLogin
               onLoginSuccess={(authOfficer) => {
                 setOfficer(authOfficer);
@@ -148,57 +150,82 @@ export default function App() {
               }}
               isDark={isDark}
             />
-          )}
+          </Suspense>
+        ) : (
+          <>
+            {/* VIEW 1: HERO LANDING */}
+            {activeView === 'hero' && (
+              <HeroSection
+                onStartVerification={() => setActiveView('dashboard')}
+                onExploreTech={() => setActiveView('architecture')}
+                onSelectDemoCase={handleSelectDemoCase}
+                isDark={isDark}
+              />
+            )}
 
-          {/* VIEW 3: MAIN OFFICER DASHBOARD */}
-          {activeView === 'dashboard' && officer && (
-            <MainDashboard
-              officer={officer}
-              onStartNewVerification={() => setActiveView('workflow')}
-              onSelectDemoCase={handleSelectDemoCase}
-              onNavigate={(view) => setActiveView(view)}
-              isDark={isDark}
-            />
-          )}
-
-          {/* VIEW 4: VERIFICATION WORKFLOW PIPELINE (MODULES 1 TO 7) */}
-          {activeView === 'workflow' && (
-            <WorkflowPipeline
-              currentCase={currentCase}
-              officer={
-                officer || {
-                  id: 'MHA-GUEST',
-                  name: 'Officer Guest',
-                  badgeNumber: 'GUEST-01',
-                  checkpointLocation: 'Evaluation Terminal',
-                  clearanceLevel: 'LEVEL-3',
-                }
+            {/* Dynamic Views wrapped in Suspense */}
+            <Suspense
+              fallback={
+                <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3 text-xs font-mono">
+                  <ScanLine className="w-6 h-6 text-cyan-500 animate-spin" />
+                  <span className="opacity-70">Loading Aegis Security Module...</span>
+                </div>
               }
-              onUpdateCase={(updated) => setCurrentCase(updated)}
-              onSaveToAudit={handleSaveToAudit}
-              onOpenReport={() => setActiveView('audit')}
-              isDark={isDark}
-            />
-          )}
+            >
+              {/* VIEW 2: OFFICER LOGIN */}
+              {activeView === 'login' && (
+                <OfficerLogin
+                  onLoginSuccess={(authOfficer) => {
+                    setOfficer(authOfficer);
+                    setActiveView('dashboard');
+                  }}
+                  isDark={isDark}
+                />
+              )}
 
-          {/* VIEW 5: DIGITAL AUDIT TRAIL */}
-          {activeView === 'audit' && (
-            <AuditTrailView
-              cases={auditCases}
-              onOpenReport={(repCase) => {
-                setCurrentCase(repCase);
-                setActiveView('workflow');
-              }}
-              isDark={isDark}
-            />
-          )}
+              {/* VIEW 3: MAIN OFFICER DASHBOARD */}
+              {activeView === 'dashboard' && (
+                <MainDashboard
+                  officer={officer}
+                  onStartNewVerification={() => setActiveView('workflow')}
+                  onSelectDemoCase={handleSelectDemoCase}
+                  onNavigate={handleNavigate}
+                  isDark={isDark}
+                />
+              )}
 
-          {/* VIEW 6: ANALYTICS MODULE */}
-          {activeView === 'analytics' && <AnalyticsView isDark={isDark} />}
+              {/* VIEW 4: VERIFICATION WORKFLOW PIPELINE (MODULES 1 TO 7) */}
+              {activeView === 'workflow' && (
+                <WorkflowPipeline
+                  currentCase={currentCase}
+                  officer={officer}
+                  onUpdateCase={(updated) => setCurrentCase(updated)}
+                  onSaveToAudit={handleSaveToAudit}
+                  onOpenReport={() => setActiveView('audit')}
+                  isDark={isDark}
+                />
+              )}
 
-          {/* VIEW 7: SYSTEM ARCHITECTURE & AI TECHNOLOGY */}
-          {activeView === 'architecture' && <ArchitectureView isDark={isDark} />}
-        </Suspense>
+              {/* VIEW 5: DIGITAL AUDIT TRAIL */}
+              {activeView === 'audit' && (
+                <AuditTrailView
+                  cases={auditCases}
+                  onOpenReport={(repCase) => {
+                    setCurrentCase(repCase);
+                    setActiveView('workflow');
+                  }}
+                  isDark={isDark}
+                />
+              )}
+
+              {/* VIEW 6: ANALYTICS MODULE */}
+              {activeView === 'analytics' && <AnalyticsView isDark={isDark} />}
+
+              {/* VIEW 7: SYSTEM ARCHITECTURE & AI TECHNOLOGY */}
+              {activeView === 'architecture' && <ArchitectureView isDark={isDark} />}
+            </Suspense>
+          </>
+        )}
       </main>
     </div>
   );

@@ -11,7 +11,8 @@ import {
   History,
   Activity,
   Layers,
-  LayoutDashboard
+  LayoutDashboard,
+  Lock
 } from 'lucide-react';
 import { OfficerProfile } from '../types/screening';
 
@@ -75,77 +76,84 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Center: Desktop Nav Links (hidden on mobile/tablet) */}
-        <nav aria-label="Main Navigation" className="hidden lg:flex items-center gap-1 text-[15px] font-medium">
-          <button
-            type="button"
-            onClick={() => handleNavClick('dashboard')}
-            className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-              currentView === 'dashboard'
-                ? isDark
-                  ? 'bg-slate-800 text-cyan-400 font-semibold'
-                  : 'bg-black/5 text-black font-semibold'
-                : 'hover:opacity-70'
-            }`}
-          >
-            Dashboard
-          </button>
+        {officer ? (
+          <nav aria-label="Main Navigation" className="hidden lg:flex items-center gap-1 text-[15px] font-medium">
+            <button
+              type="button"
+              onClick={() => handleNavClick('dashboard')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                currentView === 'dashboard'
+                  ? isDark
+                    ? 'bg-slate-800 text-cyan-400 font-semibold'
+                    : 'bg-black/5 text-black font-semibold'
+                  : 'hover:opacity-70'
+              }`}
+            >
+              Dashboard
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleNavClick('workflow')}
-            className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-              currentView === 'workflow'
-                ? isDark
-                  ? 'bg-slate-800 text-cyan-400 font-semibold'
-                  : 'bg-black/5 text-black font-semibold'
-                : 'hover:opacity-70'
-            }`}
-          >
-            New Verification
-          </button>
+            <button
+              type="button"
+              onClick={() => handleNavClick('workflow')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                currentView === 'workflow'
+                  ? isDark
+                    ? 'bg-slate-800 text-cyan-400 font-semibold'
+                    : 'bg-black/5 text-black font-semibold'
+                  : 'hover:opacity-70'
+              }`}
+            >
+              New Verification
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleNavClick('audit')}
-            className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-              currentView === 'audit'
-                ? isDark
-                  ? 'bg-slate-800 text-cyan-400 font-semibold'
-                  : 'bg-black/5 text-black font-semibold'
-                : 'hover:opacity-70'
-            }`}
-          >
-            Audit Trail
-          </button>
+            <button
+              type="button"
+              onClick={() => handleNavClick('audit')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                currentView === 'audit'
+                  ? isDark
+                    ? 'bg-slate-800 text-cyan-400 font-semibold'
+                    : 'bg-black/5 text-black font-semibold'
+                  : 'hover:opacity-70'
+              }`}
+            >
+              Audit Trail
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleNavClick('analytics')}
-            className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-              currentView === 'analytics'
-                ? isDark
-                  ? 'bg-slate-800 text-cyan-400 font-semibold'
-                  : 'bg-black/5 text-black font-semibold'
-                : 'hover:opacity-70'
-            }`}
-          >
-            Analytics
-          </button>
+            <button
+              type="button"
+              onClick={() => handleNavClick('analytics')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                currentView === 'analytics'
+                  ? isDark
+                    ? 'bg-slate-800 text-cyan-400 font-semibold'
+                    : 'bg-black/5 text-black font-semibold'
+                  : 'hover:opacity-70'
+              }`}
+            >
+              Analytics
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleNavClick('architecture')}
-            className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-              currentView === 'architecture'
-                ? isDark
-                  ? 'bg-slate-800 text-cyan-400 font-semibold'
-                  : 'bg-black/5 text-black font-semibold'
-                : 'hover:opacity-70'
-            }`}
-          >
-            Architecture
-          </button>
-        </nav>
+            <button
+              type="button"
+              onClick={() => handleNavClick('architecture')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                currentView === 'architecture'
+                  ? isDark
+                    ? 'bg-slate-800 text-cyan-400 font-semibold'
+                    : 'bg-black/5 text-black font-semibold'
+                  : 'hover:opacity-70'
+              }`}
+            >
+              Architecture
+            </button>
+          </nav>
+        ) : (
+          <div className="hidden lg:flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-mono">
+            <Lock className="w-3.5 h-3.5" />
+            <span>AUTHENTICATION REQUIRED // PERSONNEL ONLY</span>
+          </div>
+        )}
 
         {/* Right: Theme Toggle, Officer Session & Mobile Hamburger */}
         <div className="flex items-center gap-2 sm:gap-3">
@@ -227,108 +235,121 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="space-y-4 max-w-md mx-auto">
             {/* Officer Status Card on Mobile */}
             {officer ? (
-              <div
-                className={`p-4 rounded-xl border flex items-center justify-between ${
-                  isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-black/10'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold">
-                    <Shield className="w-5 h-5" />
+              <>
+                <div
+                  className={`p-4 rounded-xl border flex items-center justify-between ${
+                    isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-black/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold">
+                      <Shield className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-xs font-mono">{officer.name}</div>
+                      <div className="text-[10px] font-mono opacity-60">Badge: {officer.badgeNumber}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-bold text-xs font-mono">{officer.name}</div>
-                    <div className="text-[10px] font-mono opacity-60">Badge: {officer.badgeNumber}</div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onLogout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="px-2.5 py-1 rounded text-xs font-mono text-red-500 border border-red-500/30 hover:bg-red-500/10 cursor-pointer"
+                  >
+                    Log Out
+                  </button>
+                </div>
+
+                {/* Navigation Links (Touch-Optimized) */}
+                <div className="space-y-1.5 font-mono text-sm">
+                  <button
+                    type="button"
+                    onClick={() => handleNavClick('dashboard')}
+                    className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-colors ${
+                      currentView === 'dashboard'
+                        ? 'bg-cyan-500/15 text-cyan-400 font-bold border border-cyan-500/30'
+                        : 'hover:bg-black/5 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <LayoutDashboard className="w-4 h-4 text-cyan-500" />
+                    <span>Command Dashboard</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleNavClick('workflow')}
+                    className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-colors ${
+                      currentView === 'workflow'
+                        ? 'bg-cyan-500/15 text-cyan-400 font-bold border border-cyan-500/30'
+                        : 'hover:bg-black/5 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4 text-cyan-500" />
+                    <span>New Verification Pipeline</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleNavClick('audit')}
+                    className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-colors ${
+                      currentView === 'audit'
+                        ? 'bg-cyan-500/15 text-cyan-400 font-bold border border-cyan-500/30'
+                        : 'hover:bg-black/5 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <History className="w-4 h-4 text-cyan-500" />
+                    <span>Digital Audit Trail Ledger</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleNavClick('analytics')}
+                    className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-colors ${
+                      currentView === 'analytics'
+                        ? 'bg-cyan-500/15 text-cyan-400 font-bold border border-cyan-500/30'
+                        : 'hover:bg-black/5 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <Activity className="w-4 h-4 text-cyan-500" />
+                    <span>Screening Analytics</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleNavClick('architecture')}
+                    className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-colors ${
+                      currentView === 'architecture'
+                        ? 'bg-cyan-500/15 text-cyan-400 font-bold border border-cyan-500/30'
+                        : 'hover:bg-black/5 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <Layers className="w-4 h-4 text-cyan-500" />
+                    <span>Architecture & How AI Works</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4 text-center py-6">
+                <div className="w-12 h-12 mx-auto rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/30">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm font-mono">Restricted Clearance Terminal</h3>
+                  <p className="text-xs font-mono opacity-60 mt-1">
+                    Sign in with your authorized Officer ID & Passcode to access screening modules.
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    onLogout();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="px-2.5 py-1 rounded text-xs font-mono text-red-500 border border-red-500/30 hover:bg-red-500/10"
+                  onClick={() => handleNavClick('login')}
+                  className="w-full py-2.5 rounded-xl bg-cyan-500 text-black font-bold text-xs font-mono flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  Log Out
+                  <User className="w-4 h-4" /> Officer Sign In
                 </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => handleNavClick('login')}
-                className="w-full py-2.5 rounded-xl bg-cyan-500 text-black font-bold text-xs font-mono flex items-center justify-center gap-2"
-              >
-                <User className="w-4 h-4" /> Officer Sign In
-              </button>
             )}
-
-            {/* Navigation Links (Touch-Optimized) */}
-            <div className="space-y-1.5 font-mono text-sm">
-              <button
-                type="button"
-                onClick={() => handleNavClick('dashboard')}
-                className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-colors ${
-                  currentView === 'dashboard'
-                    ? 'bg-cyan-500/15 text-cyan-400 font-bold border border-cyan-500/30'
-                    : 'hover:bg-black/5 dark:hover:bg-slate-800'
-                }`}
-              >
-                <LayoutDashboard className="w-4 h-4 text-cyan-500" />
-                <span>Command Dashboard</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNavClick('workflow')}
-                className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-colors ${
-                  currentView === 'workflow'
-                    ? 'bg-cyan-500/15 text-cyan-400 font-bold border border-cyan-500/30'
-                    : 'hover:bg-black/5 dark:hover:bg-slate-800'
-                }`}
-              >
-                <Sparkles className="w-4 h-4 text-cyan-500" />
-                <span>New Verification Pipeline</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNavClick('audit')}
-                className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-colors ${
-                  currentView === 'audit'
-                    ? 'bg-cyan-500/15 text-cyan-400 font-bold border border-cyan-500/30'
-                    : 'hover:bg-black/5 dark:hover:bg-slate-800'
-                }`}
-              >
-                <History className="w-4 h-4 text-cyan-500" />
-                <span>Digital Audit Trail Ledger</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNavClick('analytics')}
-                className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-colors ${
-                  currentView === 'analytics'
-                    ? 'bg-cyan-500/15 text-cyan-400 font-bold border border-cyan-500/30'
-                    : 'hover:bg-black/5 dark:hover:bg-slate-800'
-                }`}
-              >
-                <Activity className="w-4 h-4 text-cyan-500" />
-                <span>Screening Analytics</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNavClick('architecture')}
-                className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-colors ${
-                  currentView === 'architecture'
-                    ? 'bg-cyan-500/15 text-cyan-400 font-bold border border-cyan-500/30'
-                    : 'hover:bg-black/5 dark:hover:bg-slate-800'
-                }`}
-              >
-                <Layers className="w-4 h-4 text-cyan-500" />
-                <span>Architecture & How AI Works</span>
-              </button>
-            </div>
 
             {/* Telemetry info at bottom of mobile menu */}
             <div className="pt-4 border-t border-black/10 dark:border-slate-800 text-xs font-mono opacity-60 flex justify-between">
