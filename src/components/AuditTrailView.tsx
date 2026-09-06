@@ -407,6 +407,12 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({
                       src={selectedCaseForModal.passportPhotoUrl || selectedCaseForModal.imagePreviewUrl}
                       alt="Passport Portrait"
                       className="w-16 h-16 rounded-xl object-cover border-2 border-cyan-500/50 shadow-sm mx-auto"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        if (!target.src.includes('samples/passport')) {
+                          target.src = '/samples/passport_avanish_singh.jpg';
+                        }
+                      }}
                     />
                   </div>
                   <div className="text-center font-mono text-xs font-bold text-cyan-500">

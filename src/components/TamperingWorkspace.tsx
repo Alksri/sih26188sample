@@ -5,9 +5,10 @@ import {
   Layers,
   Camera,
   BookOpen,
-  Zap
+  Zap,
+  FileText
 } from 'lucide-react';
-import { TamperingResult, ExtractedDocumentData, RAGIntelligenceReport } from '../types/screening';
+import { TamperingResult, ExtractedDocumentData, RAGIntelligenceReport, PDFPageInfo } from '../types/screening';
 
 interface TamperingWorkspaceProps {
   tamperingResult: TamperingResult;
@@ -17,6 +18,8 @@ interface TamperingWorkspaceProps {
   rejectionReason?: string;
   ragReport?: RAGIntelligenceReport;
   isDark: boolean;
+  pdfPages?: PDFPageInfo[];
+  hasPassportAndVisa?: boolean;
 }
 
 export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
@@ -27,13 +30,18 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
   rejectionReason,
   ragReport,
   isDark,
+  pdfPages,
+  hasPassportAndVisa,
 }) => {
   const [activeFilter, setActiveFilter] = useState<'normal' | 'uv' | 'ir' | 'ela'>('normal');
   const [showAnnotations, setShowAnnotations] = useState<boolean>(true);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [hoveredAnomalyId, setHoveredAnomalyId] = useState<string | null>(null);
+  const [activePageIndex, setActivePageIndex] = useState<number>(0);
 
   const isTampered = tamperingResult.overallRisk > 40;
+  const activePage = pdfPages && pdfPages.length > 0 ? pdfPages[Math.min(activePageIndex, pdfPages.length - 1)] : null;
+  const displayUrl = activePage?.previewUrl || imagePreviewUrl;
 
   return (
     <div className="space-y-6">
@@ -92,6 +100,32 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
             isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white/90 border-black/10 shadow-sm'
           }`}
         >
+          {/* Multi-Page PDF Document Page Switcher (Passport vs Visa) */}
+          {pdfPages && pdfPages.length > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4 p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
+              <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-cyan-600 dark:text-cyan-400">
+                <FileText className="w-4 h-4 text-cyan-500" />
+                <span>COMBINED PDF ({hasPassportAndVisa ? 'PASSPORT + VISA BUNDLE' : `${pdfPages.length} PAGES`}):</span>
+              </div>
+              <div className="flex gap-1.5">
+                {pdfPages.map((pg, idx) => (
+                  <button
+                    key={pg.pageNumber}
+                    type="button"
+                    onClick={() => setActivePageIndex(idx)}
+                    className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                      activePageIndex === idx
+                        ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30 font-extrabold'
+                        : 'bg-black/10 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-cyan-500/20'
+                    }`}
+                  >
+                    {pg.label || `Page ${pg.pageNumber}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Controls Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-black/10 dark:border-slate-800">
             <div className="flex items-center gap-1.5 text-xs font-mono">
@@ -198,12 +232,18 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
                     : 'none',
               }}
             >
-              {imagePreviewUrl ? (
+              {displayUrl ? (
                 <div className="relative w-full rounded overflow-hidden flex items-center justify-center bg-black/5">
                   <img
-                    src={imagePreviewUrl}
+                    src={displayUrl}
                     alt="Ingested Identity Document"
                     className="w-full max-h-[260px] sm:max-h-[300px] object-contain rounded select-none"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (!target.src.includes('data:image/svg')) {
+                        target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="100%" height="100%" fill="%231e293b"/><text x="50%" y="45%" fill="%2306b6d4" font-family="monospace" font-weight="bold" font-size="20" text-anchor="middle">OFFICIAL TRAVEL DOCUMENT</text><text x="50%" y="55%" fill="%2394a3b8" font-family="monospace" font-size="14" text-anchor="middle">Multi-Spectral Forensic Specimen</text></svg>';
+                      }
+                    }}
                   />
                   {/* If invalid document, overlay red rejection stamp */}
                   {isValidDocument === false && (

@@ -101,6 +101,15 @@ export interface RAGIntelligenceReport {
   standardsVerified: string[];
 }
 
+export interface PDFPageInfo {
+  pageNumber: number;
+  docType: 'PASSPORT' | 'VISA' | 'IDENTITY_DOC' | 'DOCUMENT';
+  label: string;
+  previewUrl: string; // Guaranteed data:image/jpeg;base64,...
+  base64: string;
+  extractedText?: string;
+}
+
 export interface VerificationCase {
   caseId: string;
   timestamp: string;
@@ -123,6 +132,9 @@ export interface VerificationCase {
   processingTimeSec: number;
   isSimulatedDemo?: boolean;
   ragReport?: RAGIntelligenceReport;
+  pdfPages?: PDFPageInfo[];
+  activePageIndex?: number;
+  hasPassportAndVisa?: boolean;
 }
 
 export interface OfficerProfile {

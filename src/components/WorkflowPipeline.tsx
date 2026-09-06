@@ -19,6 +19,7 @@ import {
   FlipHorizontal,
   UploadCloud,
   FileText,
+  Files,
   BookOpen,
   Zap
 } from 'lucide-react';
@@ -29,6 +30,7 @@ import {
   FaceVerificationResult
 } from '../types/screening';
 import { TamperingWorkspace } from './TamperingWorkspace';
+import { scanAndRasterizePDF } from '../services/pdfScanner';
 import {
   analyzeWithGemini25,
   compareBiometricFaces,
@@ -86,22 +88,65 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
   const passportInputRef = useRef<HTMLInputElement>(null);
   const webcamFallbackInputRef = useRef<HTMLInputElement>(null);
 
-  // Return the best available passport image for Source A
+  // Return the best available passport image for Source A (Guaranteed never to return a raw PDF data URL)
   const getEffectivePassportPhoto = useCallback(() => {
-    if (currentCase.passportPhotoUrl) return currentCase.passportPhotoUrl;
-    if (currentCase.imagePreviewUrl) return currentCase.imagePreviewUrl;
+    if (currentCase.passportPhotoUrl && !currentCase.passportPhotoUrl.startsWith('data:application/pdf')) {
+      return currentCase.passportPhotoUrl;
+    }
+    if (currentCase.imagePreviewUrl && !currentCase.imagePreviewUrl.startsWith('data:application/pdf')) {
+      return currentCase.imagePreviewUrl;
+    }
     const name = (currentCase.extractedData?.fullName || '').toLowerCase();
     if (name.includes('sarah')) return '/samples/passport_sarah_connor.jpg';
     if (name.includes('marcus')) return '/samples/passport_marcus_tan.jpg';
     return '/samples/passport_avanish_singh.jpg';
   }, [currentCase.passportPhotoUrl, currentCase.imagePreviewUrl, currentCase.extractedData?.fullName]);
 
-  // Handle uploaded file via AI Neural Engine
+  // Handle uploaded file via AI Neural Engine with Multi-Page PDF Scanner
   const handleFile = async (file: File) => {
     setIsProcessing(true);
     setProcessingStageText('Normalizing Document Geometry & Transmitting to AI Neural Engine...');
 
     try {
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+      if (isPdf) {
+        setProcessingStageText('PDF Scanner: Scanning & Rasterizing All Pages (Scale 2.0x)...');
+        const scanRes = await scanAndRasterizePDF(file);
+
+        setProcessingStageText(
+          scanRes.hasPassportAndVisa
+            ? 'Combined Passport & Visa Package Detected: Cross-Referencing Credentials...'
+            : 'Running Multimodal Neural Extraction & Modulo-7 MRZ Parity Checks...'
+        );
+
+        const result = await analyzeWithGemini25(
+          file,
+          scanRes.pages[0]?.base64 || '',
+          {
+            pdfPages: scanRes.pages,
+            extractedText: scanRes.combinedText,
+          }
+        );
+
+        // Assign clean, high-res rasterized JPEG images (NEVER raw PDF streams)
+        result.pdfPages = scanRes.pages;
+        result.activePageIndex = 0;
+        result.hasPassportAndVisa = scanRes.hasPassportAndVisa;
+        result.imagePreviewUrl = scanRes.primaryPreviewUrl;
+        result.passportPhotoUrl = scanRes.passportPhotoUrl || scanRes.primaryPreviewUrl;
+
+        if (scanRes.hasPassportAndVisa) {
+          result.documentType = 'PASSPORT & VISA BUNDLE';
+        }
+
+        setIsProcessing(false);
+        onUpdateCase(result);
+        setActiveStepIndex(1); // Advance to Extraction
+        return;
+      }
+
+      // Standard image files (JPG, PNG, WebP)
       const reader = new FileReader();
       reader.onload = async () => {
         const dataUrl = reader.result as string;
@@ -116,7 +161,7 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
       };
       reader.readAsDataURL(file);
     } catch (e) {
-      console.error(e);
+      console.error('Document processing error:', e);
       setIsProcessing(false);
       setActiveStepIndex(1);
     }
@@ -291,9 +336,25 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
     startCameraStream();
   };
 
-  const handlePassportPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePassportPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      if (isPdf) {
+        const scanRes = await scanAndRasterizePDF(file);
+        const photoUrl = scanRes.passportPhotoUrl || scanRes.primaryPreviewUrl;
+        const updated: VerificationCase = {
+          ...currentCase,
+          passportPhotoUrl: photoUrl,
+          imagePreviewUrl: currentCase.imagePreviewUrl || photoUrl,
+        };
+        onUpdateCase(updated);
+        if (capturedImage) {
+          executeBiometricComparison(photoUrl, capturedImage);
+        }
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = reader.result as string;
@@ -549,6 +610,37 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
                 <span>• MRZ Optical Zone: <strong>NOT DETECTED</strong></span>
                 <span>• Government Seals: <strong>0 DETECTED</strong></span>
                 <span>• Risk Index: <strong className="text-red-500">99% (CRITICAL)</strong></span>
+              </div>
+            </div>
+          )}
+
+          {/* MULTI-PAGE PDF BADGE & CROSS-REFERENCING (PASSPORT + VISA) */}
+          {currentCase.pdfPages && currentCase.pdfPages.length > 1 && (
+            <div className="p-4 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-500 dark:text-cyan-400">
+                  <Files className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+                    Dual-Document Package Verified ({currentCase.pdfPages.length} Pages)
+                  </div>
+                  <div className="text-sm font-sans font-semibold">
+                    {currentCase.hasPassportAndVisa
+                      ? 'Passport Data Page & Visa Certificate Cross-Referenced & Authenticated'
+                      : 'Multi-Page Identity Document Package'}
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {currentCase.pdfPages.map((pg) => (
+                  <span
+                    key={pg.pageNumber}
+                    className="px-2.5 py-1 rounded-lg text-xs font-mono bg-black/40 text-cyan-300 border border-cyan-500/30 font-medium"
+                  >
+                    {pg.label}
+                  </span>
+                ))}
               </div>
             </div>
           )}
@@ -884,6 +976,8 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
             rejectionReason={currentCase.rejectionReason}
             ragReport={currentCase.ragReport}
             isDark={isDark}
+            pdfPages={currentCase.pdfPages}
+            hasPassportAndVisa={currentCase.hasPassportAndVisa}
           />
 
           <div className="flex justify-between pt-4 border-t border-black/10 dark:border-slate-800">
@@ -971,6 +1065,12 @@ export const WorkflowPipeline: React.FC<WorkflowPipelineProps> = ({
                       src={getEffectivePassportPhoto()}
                       alt="Passport Portrait Photo"
                       className="w-full h-full object-cover select-none transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        if (!target.src.includes('samples/passport')) {
+                          target.src = '/samples/passport_avanish_singh.jpg';
+                        }
+                      }}
                     />
 
                     {/* Cybernetic scanning overlay if active */}
