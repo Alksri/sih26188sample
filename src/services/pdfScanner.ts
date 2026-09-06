@@ -146,46 +146,56 @@ export async function scanAndRasterizePDF(
 
       const lowerText = pageText.toLowerCase();
       const hasPassportKeywords =
-        lowerText.includes('passport') ||
         lowerText.includes('p<') ||
-        lowerText.includes('republic') ||
-        lowerText.includes('nationality') ||
-        lowerText.includes('date of birth') ||
-        lowerText.includes('place of birth') ||
-        lowerText.includes('place of issue');
+        lowerText.includes('type p') ||
+        lowerText.includes('type/type') ||
+        lowerText.includes('passport') ||
+        lowerText.includes('code of issuing state');
 
       const hasVisaKeywords =
         lowerText.includes('visa') ||
+        lowerText.includes('e-visa') ||
+        lowerText.includes('evisa') ||
         lowerText.includes('v-') ||
         lowerText.includes('valid for') ||
         lowerText.includes('duration of stay') ||
+        lowerText.includes('stay') ||
         lowerText.includes('entries') ||
         lowerText.includes('consulate') ||
-        lowerText.includes('immigration');
+        lowerText.includes('immigration') ||
+        lowerText.includes('permit') ||
+        lowerText.includes('entry clearance') ||
+        lowerText.includes('foreigners');
 
       let docType: 'PASSPORT' | 'VISA' | 'IDENTITY_DOC' | 'DOCUMENT' = 'DOCUMENT';
       let label = `Page ${pageNum}`;
 
-      if (hasPassportKeywords && hasVisaKeywords) {
-        docType = 'PASSPORT';
-        label = `Page ${pageNum}: Passport & Visa Record`;
-        hasDetectedPassport = true;
-        hasDetectedVisa = true;
-        if (!extractedPassportPhoto) {
-          extractedPassportPhoto = extractPortraitFromPassportCanvas(canvas);
-        }
-      } else if (hasVisaKeywords) {
+      if (hasVisaKeywords && !hasPassportKeywords) {
         docType = 'VISA';
         label = `Page ${pageNum}: Visa Certificate`;
         hasDetectedVisa = true;
-      } else if (hasPassportKeywords) {
+      } else if (hasPassportKeywords && !hasVisaKeywords) {
         docType = 'PASSPORT';
         label = `Page ${pageNum}: Passport Page`;
         hasDetectedPassport = true;
         if (!extractedPassportPhoto) {
           extractedPassportPhoto = extractPortraitFromPassportCanvas(canvas);
         }
+      } else if (hasPassportKeywords && hasVisaKeywords) {
+        if (pageNum === 1) {
+          docType = 'PASSPORT';
+          label = `Page ${pageNum}: Passport Page`;
+          hasDetectedPassport = true;
+          if (!extractedPassportPhoto) {
+            extractedPassportPhoto = extractPortraitFromPassportCanvas(canvas);
+          }
+        } else {
+          docType = 'VISA';
+          label = `Page ${pageNum}: Visa Certificate`;
+          hasDetectedVisa = true;
+        }
       } else {
+        // Fallback positional assignment for multi-page documents
         if (pageNum === 1) {
           docType = 'PASSPORT';
           label = `Page ${pageNum}: Passport Page`;
@@ -210,10 +220,25 @@ export async function scanAndRasterizePDF(
       });
     }
 
-    const hasPassportAndVisa = hasDetectedPassport && hasDetectedVisa;
+    const fileNameLower = (fileOrBuffer instanceof File ? fileOrBuffer.name : '').toLowerCase();
+    const isBothByFileName =
+      fileNameLower.includes('both') ||
+      (fileNameLower.includes('passport') && fileNameLower.includes('visa')) ||
+      combinedText.toLowerCase().includes('both');
+
+    const isBothByPages = totalPages >= 2;
+    const hasPassportAndVisa = isBothByPages || isBothByFileName || (hasDetectedPassport && hasDetectedVisa);
+
     let detectedDocType: 'PASSPORT' | 'VISA' | 'VISA AND PASSPORT' = 'PASSPORT';
     if (hasPassportAndVisa) {
       detectedDocType = 'VISA AND PASSPORT';
+      // Ensure page 1 is Passport and page 2 is Visa in dual packages
+      if (pages.length >= 2) {
+        pages[0].docType = 'PASSPORT';
+        pages[0].label = 'Page 1: Passport Page';
+        pages[1].docType = 'VISA';
+        pages[1].label = 'Page 2: Visa Certificate';
+      }
     } else if (hasDetectedVisa) {
       detectedDocType = 'VISA';
     } else {

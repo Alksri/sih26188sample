@@ -457,17 +457,19 @@ function generateDynamicFallbackCase(
   }
 
   const hasMultiplePages = Boolean(
-    options?.pdfPages &&
-    options.pdfPages.length >= 2 &&
-    options.pdfPages.some(pg => pg.docType === 'PASSPORT') &&
-    options.pdfPages.some(pg => pg.docType === 'VISA')
+    (options?.pdfPages && options.pdfPages.length >= 2) ||
+    (options?.pdfPages &&
+      options.pdfPages.some(pg => pg.docType === 'PASSPORT') &&
+      options.pdfPages.some(pg => pg.docType === 'VISA'))
   );
   const nameLower = rawName.toLowerCase();
   const textLower = (options?.extractedText || '').toLowerCase();
 
   const isBoth =
     hasMultiplePages ||
+    nameLower.includes('both') ||
     (nameLower.includes('passport') && nameLower.includes('visa')) ||
+    textLower.includes('both') ||
     (textLower.includes('passport') && textLower.includes('visa'));
 
   const isVisa = !isBoth && (nameLower.includes('visa') || (textLower.includes('visa') && !textLower.includes('passport')));
@@ -648,7 +650,7 @@ Analyze BOTH pages and cross-reference them:
 1. Extract the Passport Number from both the Passport page and Visa certificate. Confirm if they match.
 2. Confirm if the Bearer's Name and Nationality match across both documents.
 3. Check date validity logic (visa issue date within passport validity).
-4. If they match authentically, set overallRisk low (5-15%), finalDecision "VERIFIED", documentType "PASSPORT & VISA BUNDLE".
+4. If they match authentically, set overallRisk low (5-15%), finalDecision "VERIFIED", documentType "VISA AND PASSPORT", hasPassportAndVisa true.
 5. If any field or number has been altered or mismatches between pages, flag it as tampered in tamperRisk and riskExplanation.`;
     }
 
@@ -690,11 +692,13 @@ CRITICAL TASK 2: IF IT IS AN IDENTITY DOCUMENT:
   Set "documentType" to EXACTLY one of:
   - "PASSPORT" (if the uploaded file contains a passport / biodata page only)
   - "VISA" (if the uploaded file contains a visa / visa sticker / eVisa certificate only)
-  - "VISA AND PASSPORT" (if the uploaded file contains BOTH a passport and a visa)
+  - "VISA AND PASSPORT" (if the uploaded file contains BOTH a passport and a visa, or multiple pages)
+  Set "hasPassportAndVisa" to true if both are present, or false if only one.
 - If genuine: "isValidDocument": true, "overallRisk" between 5-15, "riskLevel": "LOW", "finalDecision": "VERIFIED", "officerDecision": "APPROVED".
 - If tampered/forged: "isValidDocument": true, "overallRisk" between 70-95, "riskLevel": "HIGH", "finalDecision": "HIGH RISK", "officerDecision": "DENIED".
 - Extract the EXACT text printed on the document:
   - "documentType": "PASSPORT" | "VISA" | "VISA AND PASSPORT",
+  - "hasPassportAndVisa": true | false,
   - "fullName": Full name printed on document (DO NOT default to Avanish Singh, extract the real name printed).
   - "passportNumber": Passport or document number printed.
   - "nationality": Nationality or country of issuance printed.
@@ -710,9 +714,10 @@ CRITICAL TASK 2: IF IT IS AN IDENTITY DOCUMENT:
 
 Return ONLY valid JSON matching this schema:
 {
-  "isValidDocument": false,
-  "documentClassification": "NON_IDENTITY_IMAGE",
+  "isValidDocument": true,
+  "documentClassification": "IDENTITY_DOCUMENT",
   "documentType": "PASSPORT",
+  "hasPassportAndVisa": false,
   "rejectionReason": "...",
   "fullName": "...",
   "passportNumber": "...",
@@ -846,17 +851,26 @@ Return ONLY valid JSON matching this schema:
     const safeGender = p.gender && p.gender !== 'null' ? p.gender : 'Male (M)';
     const safeDob = p.dateOfBirth && p.dateOfBirth !== 'null' ? p.dateOfBirth : '14/08/1990';
     const rawDocType = (p.documentType || '').toUpperCase();
+    const fileNameLower = (file?.name || '').toLowerCase();
+    const hasBothInName = fileNameLower.includes('both') || (fileNameLower.includes('passport') && fileNameLower.includes('visa'));
+    const hasMultiplePages = Boolean(options?.pdfPages && options.pdfPages.length >= 2);
+    const hasVisaNumberExtracted = Boolean(p.visaNumber && p.visaNumber !== 'null' && p.visaNumber !== 'N/A' && p.visaNumber !== '[NOT DETECTED]' && !p.visaNumber.toLowerCase().includes('n/a'));
+    const hasPassportNumberExtracted = Boolean(p.passportNumber && p.passportNumber !== 'null' && p.passportNumber !== 'N/A' && p.passportNumber !== '[INVALID]' && !p.passportNumber.toLowerCase().includes('invalid'));
+
     let resolvedDocType: 'PASSPORT' | 'VISA' | 'VISA AND PASSPORT' = 'PASSPORT';
 
     if (
-      (options?.pdfPages && options.pdfPages.length >= 2 && options.pdfPages.some(pg => pg.docType === 'PASSPORT') && options.pdfPages.some(pg => pg.docType === 'VISA')) ||
+      hasMultiplePages ||
+      hasBothInName ||
+      (hasVisaNumberExtracted && hasPassportNumberExtracted) ||
       rawDocType === 'VISA AND PASSPORT' ||
       rawDocType === 'PASSPORT AND VISA' ||
       rawDocType.includes('BUNDLE') ||
-      (rawDocType.includes('VISA') && rawDocType.includes('PASSPORT'))
+      (rawDocType.includes('VISA') && rawDocType.includes('PASSPORT')) ||
+      p.hasPassportAndVisa === true
     ) {
       resolvedDocType = 'VISA AND PASSPORT';
-    } else if (rawDocType.includes('VISA')) {
+    } else if (rawDocType.includes('VISA') || (hasVisaNumberExtracted && !hasPassportNumberExtracted)) {
       resolvedDocType = 'VISA';
     } else {
       resolvedDocType = 'PASSPORT';
@@ -1005,10 +1019,24 @@ Return ONLY valid JSON matching this schema:
     console.error('AI Neural Engine error, falling back to dynamic document evaluation:', err);
     const elapsed = Math.round((performance.now() - startTime) / 100) / 10;
     const name = (file?.name || '').toLowerCase();
-    const isDocName = name.includes('passport') || name.includes('visa') || name.includes('aadhaar') || name.includes('id') || name.includes('doc') || name.includes('sample') || name.includes('genuine');
+    const isDocName =
+      name.includes('passport') ||
+      name.includes('visa') ||
+      name.includes('both') ||
+      name.includes('aadhaar') ||
+      name.includes('id') ||
+      name.includes('doc') ||
+      name.includes('sample') ||
+      name.includes('genuine') ||
+      name.includes('pdf') ||
+      Boolean(options?.pdfPages && options.pdfPages.length > 0);
 
     if (name.includes('fake') || name.includes('tamper') || name.includes('forg') || options?.isTampered) {
-      return generateDynamicFallbackCase(file, caseId, elapsed, { isTampered: true });
+      return generateDynamicFallbackCase(file, caseId, elapsed, {
+        isTampered: true,
+        pdfPages: options?.pdfPages,
+        extractedText: options?.extractedText,
+      });
     }
     if (name.includes('mismatch') || name.includes('imposter')) {
       return { ...DEMO_CASE_3_FACE_MISMATCH, caseId, fileName: file?.name || 'document_scan.jpg', timestamp: new Date().toISOString(), processingTimeSec: elapsed };
@@ -1022,7 +1050,11 @@ Return ONLY valid JSON matching this schema:
         processingTimeSec: elapsed,
       };
     }
-    return generateDynamicFallbackCase(file, caseId, elapsed, { isTampered: false });
+    return generateDynamicFallbackCase(file, caseId, elapsed, {
+      isTampered: false,
+      pdfPages: options?.pdfPages,
+      extractedText: options?.extractedText,
+    });
   }
 }
 
