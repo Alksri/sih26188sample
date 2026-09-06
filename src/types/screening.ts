@@ -114,7 +114,7 @@ export interface VerificationCase {
   caseId: string;
   timestamp: string;
   officerId: string;
-  documentType: 'PASSPORT' | 'VISA' | 'DIPLOMATIC_ID' | 'NATIONAL_ID' | 'INVALID_SPECIMEN' | string;
+  documentType: 'PASSPORT' | 'VISA' | 'VISA AND PASSPORT' | 'DIPLOMATIC_ID' | 'NATIONAL_ID' | 'INVALID_SPECIMEN' | string;
   fileName: string;
   imagePreviewUrl?: string;
   passportPhotoUrl?: string;

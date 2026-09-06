@@ -456,14 +456,30 @@ function generateDynamicFallbackCase(
     if (nameMatch) displayName = nameMatch[1].trim().toUpperCase();
   }
 
-  const isMultiDoc = (options?.pdfPages && options.pdfPages.length >= 2) || rawName.toLowerCase().includes('pdf');
-  const isTampered = options?.isTampered || false;
+  const hasMultiplePages = Boolean(
+    options?.pdfPages &&
+    options.pdfPages.length >= 2 &&
+    options.pdfPages.some(pg => pg.docType === 'PASSPORT') &&
+    options.pdfPages.some(pg => pg.docType === 'VISA')
+  );
+  const nameLower = rawName.toLowerCase();
+  const textLower = (options?.extractedText || '').toLowerCase();
 
-  const docType = isMultiDoc
-    ? 'PASSPORT & VISA BUNDLE'
-    : rawName.toLowerCase().includes('visa')
+  const isBoth =
+    hasMultiplePages ||
+    (nameLower.includes('passport') && nameLower.includes('visa')) ||
+    (textLower.includes('passport') && textLower.includes('visa'));
+
+  const isVisa = !isBoth && (nameLower.includes('visa') || (textLower.includes('visa') && !textLower.includes('passport')));
+  const isPassport = !isBoth && !isVisa;
+
+  const docType: 'PASSPORT' | 'VISA' | 'VISA AND PASSPORT' = isBoth
+    ? 'VISA AND PASSPORT'
+    : isVisa
     ? 'VISA'
     : 'PASSPORT';
+
+  const isTampered = options?.isTampered || false;
 
   return {
     caseId: caseId || `SIH-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -472,7 +488,7 @@ function generateDynamicFallbackCase(
     documentType: docType,
     fileName: rawName,
     isValidDocument: true,
-    hasPassportAndVisa: isMultiDoc,
+    hasPassportAndVisa: isBoth,
     extractedData: {
       fullName: displayName,
       fullNameConfidence: isTampered ? 84.5 : 98.6,
@@ -486,27 +502,27 @@ function generateDynamicFallbackCase(
       dateOfBirthConfidence: 97.8,
       dateOfExpiry: '24/10/2030',
       dateOfExpiryConfidence: isTampered ? 64.2 : 98.9,
-      visaNumber: visaNum,
-      visaNumberConfidence: isTampered ? 68.0 : 98.7,
-      visaType: isMultiDoc ? 'Diplomatic & Entry Clearance Bundle' : 'Official Travel / Entry Clearance',
+      visaNumber: isPassport ? 'N/A' : visaNum,
+      visaNumberConfidence: isPassport ? 99.0 : (isTampered ? 68.0 : 98.7),
+      visaType: isPassport ? 'Official Passport Book (Type P)' : (isBoth ? 'Diplomatic & Entry Clearance Bundle' : 'Official Entry Clearance'),
       visaTypeConfidence: 98.0,
       entryValidation: isTampered ? 'Flagged' : 'Valid',
       entryValidationConfidence: isTampered ? 70.0 : 99.4,
-      stayDuration: '90 Days Multiple Entry',
+      stayDuration: isPassport ? 'Standard Citizen Entitlement / Non-Restricted' : '90 Days Multiple Entry',
       stayDurationConfidence: 97.5,
       mrzCode: `P<IND${displayName.replace(/\s+/g, '<')}<<<<<<<<<<<<<<<<<<<<<<\n${docNum}4IND9008142M3010248<<<<<<<<<<<<<<<6`,
       mrzValid: !isTampered,
     },
     validationChecklist: [
       { id: '1', label: 'Passport Number Format', status: isTampered ? 'warning' : 'valid', description: isTampered ? 'Checksum warning against authority registry' : 'Standard ICAO Doc 9303 format matched' },
-      { id: '2', label: 'Visa Number Format', status: isTampered ? 'invalid' : 'valid', description: isTampered ? 'Algorithmic check failed' : 'Validated against issuing mission algorithm' },
+      { id: '2', label: isPassport ? 'Passport Issuance Check' : 'Visa Number Format', status: isTampered ? 'invalid' : 'valid', description: isPassport ? 'Verified with national passport issuance registry' : 'Validated against issuing mission algorithm' },
       { id: '3', label: 'Date Format & Integrity', status: isTampered ? 'invalid' : 'valid', description: isTampered ? 'Font kerning discrepancy detected' : 'Consistent timestamps across document' },
       { id: '4', label: 'Expiry Check', status: isTampered ? 'warning' : 'valid', description: isTampered ? 'Modified expiry date detected' : 'Document is active and unexpired' },
       { id: '5', label: 'Mandatory Fields Completed', status: 'valid', description: 'All mandatory fields extracted' },
-      { id: '6', label: 'Visa Type Category', status: 'valid', description: isMultiDoc ? 'Dual Travel Package: Passport + Visa' : 'Official Travel / Entry Clearance' },
+      { id: '6', label: isPassport ? 'Passport Category' : 'Visa Type Category', status: 'valid', description: isPassport ? 'Official Passport Book (Type P)' : (isBoth ? 'Dual Travel Package: Passport + Visa' : 'Official Travel / Entry Clearance') },
       { id: '7', label: 'Entry Validation Status', status: isTampered ? 'invalid' : 'valid', description: isTampered ? 'Fails digital integrity gate' : 'Authorized port of entry' },
-      { id: '8', label: 'Stay Duration Logic', status: 'valid', description: 'Stay duration verified' },
-      ...(isMultiDoc ? [
+      { id: '8', label: 'Stay Duration Logic', status: 'valid', description: isPassport ? 'Citizen Non-Restricted Stay Entitlement' : 'Stay duration verified' },
+      ...(isBoth ? [
         {
           id: '9',
           label: 'Passport & Visa Cross-Referencing',
@@ -530,13 +546,15 @@ function generateDynamicFallbackCase(
       metadataAnomalyStatus: isTampered ? 'High' : 'Low',
       explanation: isTampered
         ? 'Digital tampering detected in number field and document metadata.'
-        : isMultiDoc
+        : isBoth
         ? `Dual-document package verified: Passport Data Page & Visa Certificate are authentic with matching cryptographic records and zero alterations.`
-        : 'Analyzed with AI Neural Engine. Micro-print continuous without manipulation.',
+        : isVisa
+        ? 'Analyzed with AI Neural Engine. Entry visa security seals and issuance credentials verified.'
+        : 'Analyzed with AI Neural Engine. Passport micro-print continuous without manipulation.',
       anomalies: isTampered ? [
         {
           id: 'g1',
-          region: 'Visa & Passport Number Region',
+          region: isBoth ? 'Visa & Passport Number Region' : (isVisa ? 'Visa Number & Seal Region' : 'Passport Number & MRZ Region'),
           riskScore: 88,
           status: 'HIGH',
           description: 'Glyph font variance and compression artifacting detected.',
@@ -563,7 +581,7 @@ function generateDynamicFallbackCase(
       faceMatchPct: isTampered ? 82.0 : 97.4,
       explanationPoints: [
         isTampered ? 'Digital tampering detected in document fields.' : 'Document structure strictly conforms to ICAO standards.',
-        isTampered ? 'MRZ optical zone parity mismatch.' : isMultiDoc ? 'Passport and Visa multi-page package cross-referenced successfully.' : 'Zero physical or digital tampering detected.',
+        isTampered ? 'MRZ optical zone parity mismatch.' : isBoth ? 'Passport and Visa multi-page package cross-referenced successfully.' : 'Zero physical or digital tampering detected.',
       ],
     },
     officerDecision: isTampered ? 'DENIED' : 'APPROVED',
@@ -572,7 +590,7 @@ function generateDynamicFallbackCase(
       .join(''),
     processingTimeSec: elapsed,
     isSimulatedDemo: false,
-    ragReport: generateRAGReportForCase(rawName, isMultiDoc ? 'PASSPORT' : (rawName.toLowerCase().includes('visa') ? 'VISA' : 'PASSPORT'), isTampered, false, false),
+    ragReport: generateRAGReportForCase(rawName, isBoth ? 'PASSPORT' : (isVisa ? 'VISA' : 'PASSPORT'), isTampered, false, false),
   };
 }
 
@@ -668,19 +686,25 @@ CRITICAL TASK 1: CLASSIFY IF THIS IS A GENUINE OR ATTEMPTED GOVERNMENT IDENTITY 
 
 CRITICAL TASK 2: IF IT IS AN IDENTITY DOCUMENT:
 - Perform an exhaustive forensic inspection for digital tampering, altered fonts/dates, photo replacement, or MRZ parity mismatches.
+- CLASSIFY THE EXACT DOCUMENT TYPE:
+  Set "documentType" to EXACTLY one of:
+  - "PASSPORT" (if the uploaded file contains a passport / biodata page only)
+  - "VISA" (if the uploaded file contains a visa / visa sticker / eVisa certificate only)
+  - "VISA AND PASSPORT" (if the uploaded file contains BOTH a passport and a visa)
 - If genuine: "isValidDocument": true, "overallRisk" between 5-15, "riskLevel": "LOW", "finalDecision": "VERIFIED", "officerDecision": "APPROVED".
 - If tampered/forged: "isValidDocument": true, "overallRisk" between 70-95, "riskLevel": "HIGH", "finalDecision": "HIGH RISK", "officerDecision": "DENIED".
 - Extract the EXACT text printed on the document:
+  - "documentType": "PASSPORT" | "VISA" | "VISA AND PASSPORT",
   - "fullName": Full name printed on document (DO NOT default to Avanish Singh, extract the real name printed).
   - "passportNumber": Passport or document number printed.
   - "nationality": Nationality or country of issuance printed.
   - "gender": Gender printed (e.g. Male, Female).
   - "dateOfBirth": Date of birth printed (DD/MM/YYYY).
   - "dateOfExpiry": Expiration date printed (DD/MM/YYYY).
-  - "visaNumber": Visa or registration number if present.
-  - "visaType": Document or visa classification printed.
+  - "visaNumber": Visa or registration number if present (or "N/A" if passport only).
+  - "visaType": Document or visa classification printed (or "PASSPORT" if passport only).
   - "entryValidation": "Valid" or "Flagged".
-  - "stayDuration": Permitted duration or validity.
+  - "stayDuration": Permitted duration or validity (or "N/A" if passport only).
   - "mrzCode": The printed MRZ lines at the bottom.
   - "mrzValid": true or false.
 
@@ -688,7 +712,7 @@ Return ONLY valid JSON matching this schema:
 {
   "isValidDocument": false,
   "documentClassification": "NON_IDENTITY_IMAGE",
-  "documentType": "INVALID_SPECIMEN",
+  "documentType": "PASSPORT",
   "rejectionReason": "...",
   "fullName": "...",
   "passportNumber": "...",
@@ -821,11 +845,43 @@ Return ONLY valid JSON matching this schema:
 
     const safeGender = p.gender && p.gender !== 'null' ? p.gender : 'Male (M)';
     const safeDob = p.dateOfBirth && p.dateOfBirth !== 'null' ? p.dateOfBirth : '14/08/1990';
+    const rawDocType = (p.documentType || '').toUpperCase();
+    let resolvedDocType: 'PASSPORT' | 'VISA' | 'VISA AND PASSPORT' = 'PASSPORT';
+
+    if (
+      (options?.pdfPages && options.pdfPages.length >= 2 && options.pdfPages.some(pg => pg.docType === 'PASSPORT') && options.pdfPages.some(pg => pg.docType === 'VISA')) ||
+      rawDocType === 'VISA AND PASSPORT' ||
+      rawDocType === 'PASSPORT AND VISA' ||
+      rawDocType.includes('BUNDLE') ||
+      (rawDocType.includes('VISA') && rawDocType.includes('PASSPORT'))
+    ) {
+      resolvedDocType = 'VISA AND PASSPORT';
+    } else if (rawDocType.includes('VISA')) {
+      resolvedDocType = 'VISA';
+    } else {
+      resolvedDocType = 'PASSPORT';
+    }
+
     const safeExpiry = p.dateOfExpiry && p.dateOfExpiry !== 'null' ? p.dateOfExpiry : '24/10/2030';
-    const safeVisaNum = p.visaNumber && p.visaNumber !== 'null' ? p.visaNumber : ('V-' + Math.floor(1000000 + Math.random() * 8999999) + '-IN');
-    const safeVisaType = p.visaType && p.visaType !== 'null' ? p.visaType : (p.documentType || 'Official Travel Document');
+    const safeVisaNum = resolvedDocType === 'PASSPORT'
+      ? 'N/A'
+      : (p.visaNumber && p.visaNumber !== 'null' && p.visaNumber !== 'N/A'
+        ? p.visaNumber
+        : ('V-' + Math.floor(1000000 + Math.random() * 8999999) + '-IN'));
+
+    const safeVisaType = resolvedDocType === 'PASSPORT'
+      ? 'Official Passport Book (Type P)'
+      : (p.visaType && p.visaType !== 'null' && p.visaType !== 'N/A' && p.visaType !== 'PASSPORT'
+        ? p.visaType
+        : (resolvedDocType === 'VISA AND PASSPORT' ? 'Diplomatic & Entry Clearance Bundle' : 'Official Travel / Entry Clearance'));
+
     const safeEntryVal = p.entryValidation && p.entryValidation !== 'null' ? p.entryValidation : (isTampered ? 'Flagged' : 'Valid');
-    const safeStay = p.stayDuration && p.stayDuration !== 'null' ? p.stayDuration : '90 Days Multiple Entry';
+    const safeStay = resolvedDocType === 'PASSPORT'
+      ? 'Standard Citizen Entitlement / Non-Restricted'
+      : (p.stayDuration && p.stayDuration !== 'null' && p.stayDuration !== 'N/A'
+        ? p.stayDuration
+        : '90 Days Multiple Entry');
+
     const safeMrz = p.mrzCode && p.mrzCode !== 'null'
       ? p.mrzCode
       : `P<IND${safeFullName.replace(/\s+/g, '<')}<<<<<<<<<<<<<<<<<<<<<<\n${safePassportNum}4IND9008142M3010248<<<<<<<<<<<<<<<6`;
@@ -838,9 +894,10 @@ Return ONLY valid JSON matching this schema:
       caseId,
       timestamp: new Date().toISOString(),
       officerId: 'MHA-INSP-8492',
-      documentType: p.documentType || (safeVisaType.toLowerCase().includes('visa') ? 'VISA' : 'PASSPORT'),
+      documentType: resolvedDocType,
       fileName: file?.name || 'uploaded_document_scan.jpg',
       isValidDocument: true,
+      hasPassportAndVisa: resolvedDocType === 'VISA AND PASSPORT',
       extractedData: {
         fullName: safeFullName,
         fullNameConfidence: isTampered ? 88.2 : 98.8,
@@ -867,13 +924,23 @@ Return ONLY valid JSON matching this schema:
       },
       validationChecklist: [
         { id: '1', label: 'Passport Number Format', status: isTampered ? 'warning' : 'valid', description: isTampered ? 'Checksum warning against authority registry' : 'Standard ICAO Doc 9303 format matched' },
-        { id: '2', label: 'Visa Number Format', status: isTampered ? 'invalid' : 'valid', description: isTampered ? 'Algorithmic check failed' : 'Validated against issuing mission algorithm' },
+        { id: '2', label: resolvedDocType === 'PASSPORT' ? 'Passport Authority Check' : 'Visa Number Format', status: isTampered ? 'invalid' : 'valid', description: resolvedDocType === 'PASSPORT' ? 'Verified against national passport issuance registry' : 'Validated against issuing mission algorithm' },
         { id: '3', label: 'Date Format & Integrity', status: isTampered ? 'invalid' : 'valid', description: isTampered ? 'Font kerning discrepancy detected' : 'Consistent timestamps across document' },
         { id: '4', label: 'Expiry Check', status: isTampered ? 'warning' : 'valid', description: isTampered ? 'Modified expiry date detected' : 'Document is active and unexpired' },
         { id: '5', label: 'Mandatory Fields Completed', status: 'valid', description: 'All mandatory fields extracted' },
-        { id: '6', label: 'Visa Type Category', status: 'valid', description: safeVisaType },
+        { id: '6', label: resolvedDocType === 'PASSPORT' ? 'Passport Category' : 'Visa Type Category', status: 'valid', description: safeVisaType },
         { id: '7', label: 'Entry Validation Status', status: isTampered ? 'invalid' : 'valid', description: isTampered ? 'Fails digital integrity gate' : 'Authorized port of entry' },
-        { id: '8', label: 'Stay Duration Logic', status: 'valid', description: 'Stay duration verified' },
+        { id: '8', label: 'Stay Duration Logic', status: 'valid', description: resolvedDocType === 'PASSPORT' ? 'Citizen Non-Restricted Stay Entitlement' : 'Stay duration verified' },
+        ...(resolvedDocType === 'VISA AND PASSPORT' ? [
+          {
+            id: '9',
+            label: 'Passport & Visa Cross-Referencing',
+            status: (isTampered ? 'invalid' : 'valid') as 'invalid' | 'valid',
+            description: isTampered
+              ? 'Discrepancy detected between Passport biographical page and Visa certificate'
+              : `Passport No. (${safePassportNum}) on Visa certificate matches Passport Data Page`,
+          }
+        ] : []),
       ],
       tamperingResult: {
         overallRisk: p.tamperRisk || (isTampered ? 84 : 8),
@@ -928,7 +995,7 @@ Return ONLY valid JSON matching this schema:
       isSimulatedDemo: false,
       ragReport: generateRAGReportForCase(
         file?.name || 'uploaded_document_scan.jpg',
-        p.documentType || (safeVisaType.toLowerCase().includes('visa') ? 'VISA' : 'PASSPORT'),
+        resolvedDocType,
         isTampered,
         false,
         false

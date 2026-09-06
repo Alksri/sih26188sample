@@ -13,6 +13,7 @@ export interface PDFScanResult {
   primaryPreviewUrl: string; // Guaranteed valid data:image/jpeg;base64,... (never application/pdf)
   passportPhotoUrl?: string; // Cropped biometric portrait JPEG
   hasPassportAndVisa: boolean;
+  detectedDocType: 'PASSPORT' | 'VISA' | 'VISA AND PASSPORT';
   combinedText: string;
 }
 
@@ -85,6 +86,7 @@ export async function scanAndRasterizePDF(
       pages: [],
       primaryPreviewUrl: '',
       hasPassportAndVisa: false,
+      detectedDocType: 'PASSPORT',
       combinedText: '',
     };
   }
@@ -143,15 +145,16 @@ export async function scanAndRasterizePDF(
       }
 
       const lowerText = pageText.toLowerCase();
-      const isPassport =
+      const hasPassportKeywords =
         lowerText.includes('passport') ||
         lowerText.includes('p<') ||
         lowerText.includes('republic') ||
         lowerText.includes('nationality') ||
         lowerText.includes('date of birth') ||
-        pageNum === 1; // Default page 1 to passport if ambiguous
+        lowerText.includes('place of birth') ||
+        lowerText.includes('place of issue');
 
-      const isVisa =
+      const hasVisaKeywords =
         lowerText.includes('visa') ||
         lowerText.includes('v-') ||
         lowerText.includes('valid for') ||
@@ -163,21 +166,38 @@ export async function scanAndRasterizePDF(
       let docType: 'PASSPORT' | 'VISA' | 'IDENTITY_DOC' | 'DOCUMENT' = 'DOCUMENT';
       let label = `Page ${pageNum}`;
 
-      if (isVisa && pageNum > 1) {
+      if (hasPassportKeywords && hasVisaKeywords) {
+        docType = 'PASSPORT';
+        label = `Page ${pageNum}: Passport & Visa Record`;
+        hasDetectedPassport = true;
+        hasDetectedVisa = true;
+        if (!extractedPassportPhoto) {
+          extractedPassportPhoto = extractPortraitFromPassportCanvas(canvas);
+        }
+      } else if (hasVisaKeywords) {
         docType = 'VISA';
         label = `Page ${pageNum}: Visa Certificate`;
         hasDetectedVisa = true;
-      } else if (isPassport) {
+      } else if (hasPassportKeywords) {
         docType = 'PASSPORT';
         label = `Page ${pageNum}: Passport Page`;
         hasDetectedPassport = true;
-        // Extract portrait crop from passport page
         if (!extractedPassportPhoto) {
           extractedPassportPhoto = extractPortraitFromPassportCanvas(canvas);
         }
       } else {
-        docType = 'IDENTITY_DOC';
-        label = `Page ${pageNum}: Travel Document`;
+        if (pageNum === 1) {
+          docType = 'PASSPORT';
+          label = `Page ${pageNum}: Passport Page`;
+          hasDetectedPassport = true;
+          if (!extractedPassportPhoto) {
+            extractedPassportPhoto = extractPortraitFromPassportCanvas(canvas);
+          }
+        } else {
+          docType = 'VISA';
+          label = `Page ${pageNum}: Visa Certificate`;
+          hasDetectedVisa = true;
+        }
       }
 
       pages.push({
@@ -190,7 +210,15 @@ export async function scanAndRasterizePDF(
       });
     }
 
-    const hasPassportAndVisa = (hasDetectedPassport && hasDetectedVisa) || totalPages >= 2;
+    const hasPassportAndVisa = hasDetectedPassport && hasDetectedVisa;
+    let detectedDocType: 'PASSPORT' | 'VISA' | 'VISA AND PASSPORT' = 'PASSPORT';
+    if (hasPassportAndVisa) {
+      detectedDocType = 'VISA AND PASSPORT';
+    } else if (hasDetectedVisa) {
+      detectedDocType = 'VISA';
+    } else {
+      detectedDocType = 'PASSPORT';
+    }
 
     // Default primary preview is Page 1's rendered image
     const primaryPreviewUrl = pages[0]?.previewUrl || '';
@@ -203,6 +231,7 @@ export async function scanAndRasterizePDF(
       primaryPreviewUrl,
       passportPhotoUrl,
       hasPassportAndVisa,
+      detectedDocType,
       combinedText,
     };
   } catch (err) {
@@ -250,6 +279,7 @@ export async function scanAndRasterizePDF(
       primaryPreviewUrl: fallbackUrl,
       passportPhotoUrl: fallbackUrl,
       hasPassportAndVisa: true,
+      detectedDocType: 'VISA AND PASSPORT',
       combinedText: 'PASSPORT AND VISA COMBINED PACKAGE',
     };
   }

@@ -20,6 +20,7 @@ interface TamperingWorkspaceProps {
   isDark: boolean;
   pdfPages?: PDFPageInfo[];
   hasPassportAndVisa?: boolean;
+  documentType?: string;
 }
 
 export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
@@ -32,6 +33,7 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
   isDark,
   pdfPages,
   hasPassportAndVisa,
+  documentType,
 }) => {
   const [activeFilter, setActiveFilter] = useState<'normal' | 'uv' | 'ir' | 'ela'>('normal');
   const [showAnnotations, setShowAnnotations] = useState<boolean>(true);
@@ -42,6 +44,18 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
   const isTampered = tamperingResult.overallRisk > 40;
   const activePage = pdfPages && pdfPages.length > 0 ? pdfPages[Math.min(activePageIndex, pdfPages.length - 1)] : null;
   const displayUrl = activePage?.previewUrl || imagePreviewUrl;
+
+  const docTypeUpper = (documentType || '').toUpperCase();
+  const isBoth = Boolean(
+    hasPassportAndVisa ||
+    docTypeUpper === 'VISA AND PASSPORT' ||
+    docTypeUpper === 'PASSPORT AND VISA' ||
+    docTypeUpper.includes('BUNDLE') ||
+    (docTypeUpper.includes('VISA') && docTypeUpper.includes('PASSPORT'))
+  );
+  const isVisa = !isBoth && docTypeUpper.includes('VISA');
+  const isPassport = !isBoth && !isVisa;
+  const docTypeLabel = isBoth ? 'VISA AND PASSPORT' : isVisa ? 'VISA' : 'PASSPORT';
 
   return (
     <div className="space-y-6">
@@ -55,6 +69,20 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
           <h2 className="font-heading-custom text-2xl sm:text-3xl font-bold tracking-tight">
             Module 3: AI Tampering Detection
           </h2>
+          <div className="flex items-center gap-2 mt-1 mb-1">
+            <span className={`px-2.5 py-0.5 rounded text-[11px] font-mono font-bold border ${
+              isBoth
+                ? 'bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400'
+                : isVisa
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-600 dark:text-cyan-400'
+            }`}>
+              DOCUMENT: {docTypeLabel}
+            </span>
+            <span className="text-[11px] font-mono opacity-60">
+              // {isBoth ? 'Passport & Visa Dual Package' : isVisa ? 'Visa Certificate Forensics' : 'Passport Specimen Forensics'}
+            </span>
+          </div>
           <p className="text-xs sm:text-sm opacity-70 mt-0.5">
             Detect digitally or physically altered identity documents using multi-spectral computer vision & error level forensics.
           </p>
@@ -105,7 +133,7 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4 p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
               <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-cyan-600 dark:text-cyan-400">
                 <FileText className="w-4 h-4 text-cyan-500" />
-                <span>COMBINED PDF ({hasPassportAndVisa ? 'PASSPORT + VISA BUNDLE' : `${pdfPages.length} PAGES`}):</span>
+                <span>COMBINED PDF ({isBoth ? 'VISA AND PASSPORT' : `${pdfPages.length} PAGES`}):</span>
               </div>
               <div className="flex gap-1.5">
                 {pdfPages.map((pg, idx) => (
@@ -263,10 +291,16 @@ export const TamperingWorkspace: React.FC<TamperingWorkspaceProps> = ({
                   <div className="flex justify-between items-start mb-3 border-b pb-2">
                     <div>
                       <div className="text-[9px] font-mono uppercase tracking-widest text-slate-500">
-                        REPUBLIC OF INDIA // OFFICIAL TRAVEL DOCUMENT
+                        {isPassport
+                          ? 'REPUBLIC OF INDIA // OFFICIAL PASSPORT'
+                          : isVisa
+                          ? 'REPUBLIC OF INDIA // ENTRY VISA CLEARANCE'
+                          : 'REPUBLIC OF INDIA // VISA AND PASSPORT PACKAGE'}
                       </div>
                       <div className="text-sm font-bold font-mono">
-                        {extractedData.visaNumber || 'V-9842104-IN'}
+                        {isPassport
+                          ? (extractedData.passportNumber || 'X6248911')
+                          : (extractedData.visaNumber || 'V-9842104-IN')}
                       </div>
                     </div>
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-black/20 font-bold bg-slate-100">
