@@ -80,6 +80,27 @@ export interface RiskAssessment {
   explanationPoints: string[];
 }
 
+export interface RAGCitation {
+  id: string;
+  category: 'ICAO_DOC_9303' | 'COUNTRY_REGISTRY' | 'FORENSIC_STANDARD' | 'SECURITY_WATCHLIST' | 'VISA_REGULATION';
+  title: string;
+  section: string;
+  sourceDoc: string;
+  relevanceScore: number;
+  snippet: string;
+  verificationVerdict?: 'COMPLIANT' | 'NON_COMPLIANT' | 'FLAGGED' | 'INFORMATIONAL';
+}
+
+export interface RAGIntelligenceReport {
+  retrievedCitations: RAGCitation[];
+  groundingConfidence: number; // 0-100%
+  ragTokensUsed: number;       // e.g. ~120 tokens
+  estimatedCreditSavingsPct: number; // e.g. 82%
+  ragMode: 'LOCAL_ZERO_CREDIT' | 'CREDIT_OPTIMIZED_AI';
+  summary: string;
+  standardsVerified: string[];
+}
+
 export interface VerificationCase {
   caseId: string;
   timestamp: string;
@@ -101,6 +122,7 @@ export interface VerificationCase {
   sha256Hash: string;
   processingTimeSec: number;
   isSimulatedDemo?: boolean;
+  ragReport?: RAGIntelligenceReport;
 }
 
 export interface OfficerProfile {

@@ -10,7 +10,9 @@ import {
   Activity,
   History,
   CheckCircle2,
-  UserCheck
+  UserCheck,
+  BookOpen,
+  Zap
 } from 'lucide-react';
 import { OfficerProfile } from '../types/screening';
 
@@ -18,7 +20,7 @@ interface MainDashboardProps {
   officer: OfficerProfile;
   onStartNewVerification: () => void;
   onSelectDemoCase: (caseType: 'genuine' | 'tampered' | 'mismatch') => void;
-  onNavigate: (view: 'workflow' | 'audit' | 'analytics') => void;
+  onNavigate: (view: 'workflow' | 'audit' | 'analytics' | 'rag') => void;
   isDark: boolean;
 }
 
@@ -136,6 +138,48 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           <div className="text-2xl sm:text-3xl font-mono font-bold">4.8s</div>
           <div className="text-[11px] opacity-60 mt-1 font-mono">Reduced from ~5m</div>
         </div>
+      </div>
+
+      {/* RAG REGULATORY INTELLIGENCE & CREDIT CONSERVATION BANNER */}
+      <div
+        className={`p-5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+          isDark
+            ? 'bg-gradient-to-r from-emerald-950/30 via-slate-900 to-cyan-950/20 border-emerald-500/30'
+            : 'bg-gradient-to-r from-emerald-50 via-white to-cyan-50 border-emerald-200 shadow-sm'
+        }`}
+      >
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0 border border-emerald-500/30">
+            <BookOpen className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="font-heading-custom text-base font-bold">
+                Credit-Optimized RAG Grounding Engine Active
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30">
+                Eco Protocol
+              </span>
+            </div>
+            <p className="text-xs opacity-75 font-mono">
+              Zero-cost local indexing • 16 official ICAO Doc 9303 &amp; country registries • ~82% token credit conservation.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onNavigate('rag')}
+          className={`px-4 py-2 rounded-xl text-xs font-mono font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all shrink-0 ${
+            isDark
+              ? 'bg-emerald-500 text-black hover:bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+              : 'bg-black text-white hover:bg-gray-800'
+          }`}
+        >
+          <Zap className="w-3.5 h-3.5" />
+          <span>Launch RAG Intel Hub</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* QUICK DEMO PRESETS CARDS FOR EVALUATORS */}

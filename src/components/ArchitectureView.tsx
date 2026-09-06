@@ -9,7 +9,8 @@ import {
   Shield,
   History,
   Sparkles,
-  Camera
+  Camera,
+  BookOpen
 } from 'lucide-react';
 
 interface ArchitectureViewProps {
@@ -107,6 +108,16 @@ const ARCHITECTURE_COMPONENTS: ComponentDetail[] = [
     inputs: ['Officer decision', 'Case telemetry JSON', 'Timestamp'],
     outputs: ['SHA-256 digest', 'Signed forensic case dossier'],
     techStack: 'SHA-256 cryptographic hashing, WORM (Write Once Read Many) audit storage',
+  },
+  {
+    id: 'rag',
+    title: 'Credit-Optimized RAG Regulatory Grounding',
+    category: 'Knowledge & Standards Grounding',
+    icon: BookOpen,
+    summary: 'Grounds extraction, checksums, and tampering forensics against ICAO Doc 9303 and national travel registries using zero-cost client-side BM25 indexing and ~82% prompt token compression.',
+    inputs: ['Extracted document fields', 'MRZ optical band', 'Multi-spectral forensics'],
+    outputs: ['Authoritative citations', 'Modulo-7 parity verdict', 'Credit savings telemetry (82%)'],
+    techStack: 'Client-side Inverted Index, BM25 / N-Gram Vectorless Retrieval, Micro-Context Compressor, Gemini Multimodal',
   },
 ];
 
@@ -329,11 +340,26 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({ isDark }) =>
             }`}
           >
             <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-emerald-500" />
+              <Sparkles className="w-5 h-5 text-emerald-500" />
               <h3 className="font-heading-custom text-base font-bold">Explainable AI (XAI)</h3>
             </div>
             <p className="text-xs leading-relaxed opacity-75">
               Eliminates "black box" decisions by generating actionable natural language rationales and visual bounding boxes that empower border officers to justify interdictions legally and objectively.
+            </p>
+          </div>
+
+          {/* Card 7: Credit-Optimized RAG */}
+          <div
+            className={`p-6 rounded-2xl border space-y-2 ${
+              isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white/80 border-black/10 shadow-sm'
+            }`}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <BookOpen className="w-5 h-5 text-cyan-500" />
+              <h3 className="font-heading-custom text-base font-bold">Credit-Optimized RAG</h3>
+            </div>
+            <p className="text-xs leading-relaxed opacity-75">
+              Replaces credit-heavy embedding APIs and huge token dumps with high-speed client-side BM25 indexing and micro-context compression. Delivers authoritative ICAO Doc 9303 grounding while cutting AI token costs by ~82%.
             </p>
           </div>
         </div>

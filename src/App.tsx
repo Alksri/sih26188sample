@@ -35,6 +35,9 @@ const AnalyticsView = lazy(() =>
 const ArchitectureView = lazy(() =>
   import('./components/ArchitectureView').then((m) => ({ default: m.ArchitectureView }))
 );
+const RAGKnowledgeHub = lazy(() =>
+  import('./components/RAGKnowledgeHub').then((m) => ({ default: m.RAGKnowledgeHub }))
+);
 
 export default function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -44,7 +47,7 @@ export default function App() {
 
   // Default to 'dashboard' if logged in, otherwise strictly 'login'
   const [activeView, setActiveView] = useState<
-    'hero' | 'login' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture'
+    'hero' | 'login' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'rag'
   >(() => (getStoredOfficerSession() ? 'dashboard' : 'login'));
 
   // Current active case being screened
@@ -100,7 +103,7 @@ export default function App() {
   }, [isDark]);
 
   // Strict access guard: unauthenticated users cannot access internal views
-  const handleNavigate = (view: 'hero' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'login') => {
+  const handleNavigate = (view: 'hero' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'rag' | 'login') => {
     if (!officer && view !== 'login') {
       setActiveView('login');
       return;
@@ -223,6 +226,9 @@ export default function App() {
 
               {/* VIEW 7: SYSTEM ARCHITECTURE & AI TECHNOLOGY */}
               {activeView === 'architecture' && <ArchitectureView isDark={isDark} />}
+
+              {/* VIEW 8: RAG REGULATORY INTELLIGENCE HUB */}
+              {activeView === 'rag' && <RAGKnowledgeHub isDark={isDark} />}
             </Suspense>
           </>
         )}

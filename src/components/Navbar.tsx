@@ -12,13 +12,14 @@ import {
   Activity,
   Layers,
   LayoutDashboard,
-  Lock
+  Lock,
+  BookOpen
 } from 'lucide-react';
 import { OfficerProfile } from '../types/screening';
 
 interface NavbarProps {
   currentView: string;
-  onNavigate: (view: 'hero' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'login') => void;
+  onNavigate: (view: 'hero' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'rag' | 'login') => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   officer: OfficerProfile | null;
@@ -36,7 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isDark = theme === 'dark';
 
-  const handleNavClick = (view: 'hero' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'login') => {
+  const handleNavClick = (view: 'hero' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'rag' | 'login') => {
     onNavigate(view);
     setMobileMenuOpen(false);
   };
@@ -146,6 +147,24 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               Architecture
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleNavClick('rag')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+                currentView === 'rag'
+                  ? isDark
+                    ? 'bg-slate-800 text-emerald-400 font-semibold'
+                    : 'bg-black/5 text-black font-semibold'
+                  : 'hover:opacity-70'
+              }`}
+              title="RAG Regulatory Intelligence (Credit-Optimized)"
+            >
+              <span>RAG Intel</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold">
+                Eco
+              </span>
             </button>
           </nav>
         ) : (
@@ -327,6 +346,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     <Layers className="w-4 h-4 text-cyan-500" />
                     <span>Architecture & How AI Works</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleNavClick('rag')}
+                    className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-colors ${
+                      currentView === 'rag'
+                        ? 'bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/30'
+                        : 'hover:bg-black/5 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <BookOpen className="w-4 h-4 text-emerald-500" />
+                    <div className="flex items-center gap-2">
+                      <span>RAG Regulatory Intelligence</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-500 font-bold">
+                        Eco
+                      </span>
+                    </div>
                   </button>
                 </div>
               </>
