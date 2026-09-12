@@ -38,27 +38,65 @@ export const AUTHORIZED_OFFICERS_REGISTRY: Record<string, OfficerRegistryEntry> 
   },
 };
 
+export const ADMIN_CREDENTIALS = {
+  username: 'Bumblebee',
+  password: 'Alkesh@123',
+};
+
+export const ADMIN_OFFICER_PROFILE: OfficerProfile = {
+  id: 'MHA-BUMBLEBEE-ROOT-001',
+  name: 'Director Bumblebee',
+  badgeNumber: 'ADMIN-APEX-001',
+  checkpointLocation: 'National Command Center // Apex Telemetry Hub',
+  clearanceLevel: 'LEVEL-5 ROOT DIRECTIVE (GLOBAL ADMIN & TELEMETRY)',
+  isAdmin: true,
+};
+
 const SESSION_STORAGE_KEY = 'bumblebee_mha_officer_session';
 
 /**
- * Authenticate officer with strict ID and passcode checking
+ * Check if the officer has Administrator privileges
+ */
+export function isAdminUser(officer: OfficerProfile | null): boolean {
+  if (!officer) return false;
+  return Boolean(officer.isAdmin || officer.id?.includes('BUMBLEBEE') || officer.name?.toLowerCase().includes('bumblebee'));
+}
+
+/**
+ * Authenticate officer or administrator with strict ID and passcode checking
  */
 export function authenticateOfficer(
   rawOfficerId: string,
   rawPasscode: string
 ): { success: boolean; officer?: OfficerProfile; error?: string } {
   const cleanId = (rawOfficerId || '').trim().toLowerCase();
-  const cleanPasscode = (rawPasscode || '').trim();
+  const rawCleanPasscode = (rawPasscode || '').trim();
 
   if (!cleanId) {
-    return { success: false, error: 'Officer ID is required for clearance.' };
+    return { success: false, error: 'Officer ID or Admin Username is required.' };
   }
 
-  if (!cleanPasscode) {
+  if (!rawCleanPasscode) {
     return { success: false, error: 'Security passcode / cryptographic key is required.' };
   }
 
-  // Find matching officer profile
+  // 1. Check Super Admin Credentials (Username: Bumblebee / Pass: Alkesh@123)
+  if (cleanId === 'bumblebee' || cleanId === 'admin' || cleanId === 'mha-bumblebee') {
+    if (rawCleanPasscode === ADMIN_CREDENTIALS.password) {
+      storeOfficerSession(ADMIN_OFFICER_PROFILE);
+      return {
+        success: true,
+        officer: ADMIN_OFFICER_PROFILE,
+      };
+    } else {
+      return {
+        success: false,
+        error: 'Administrator Clearance Rejected: Invalid security password for Bumblebee.',
+      };
+    }
+  }
+
+  // 2. Find matching officer profile in authorized registry
   let matchedEntry: OfficerRegistryEntry | undefined;
 
   for (const key of Object.keys(AUTHORIZED_OFFICERS_REGISTRY)) {
@@ -72,11 +110,11 @@ export function authenticateOfficer(
   if (!matchedEntry) {
     return {
       success: false,
-      error: `Access Denied: Officer ID "${rawOfficerId}" is not registered in the MHA authorized registry. Only authorized officers (hardik, kshama, alkesh) may log in.`,
+      error: `Access Denied: ID "${rawOfficerId}" is not recognized. For Officer access use hardik, kshama, or alkesh. For Admin access use Bumblebee.`,
     };
   }
 
-  if (cleanPasscode !== MASTER_OFFICER_PASSCODE) {
+  if (rawCleanPasscode !== MASTER_OFFICER_PASSCODE) {
     return {
       success: false,
       error: 'Security Clearance Failed: Invalid passcode for this officer ID. Access rejected.',

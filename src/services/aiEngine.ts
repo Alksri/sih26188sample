@@ -9,6 +9,9 @@ import {
   generateRAGReportForCase,
   validateMRZChecksumLocal
 } from './ragEngine';
+import { recordRealAICall as _recordRealAICall } from './telemetryService';
+// Re-export so telemetry callers can use this when making live Gemini API calls
+export const recordRealAICall = _recordRealAICall;
 
 // Base64 encoded AI Engine API key to avoid GitHub push protection scanner false positives
 const FALLBACK_ENC = 'QVEuQWI4Uk42SmE0Z0MxTG5RQ19yZEtubnpsWUs3MFl1ckltcmp2R1NzRlpPWWVDNktwc1E=';

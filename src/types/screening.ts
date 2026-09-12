@@ -143,4 +143,42 @@ export interface OfficerProfile {
   badgeNumber: string;
   checkpointLocation: string;
   clearanceLevel: string;
+  isAdmin?: boolean;
+}
+
+export interface DeviceTelemetryEntry {
+  id: string;
+  deviceType: 'Desktop' | 'Mobile' | 'Tablet';
+  browser: string;
+  os: string;
+  screenResolution: string;
+  location: string;
+  checkpointName: string;
+  ipMasked: string;
+  firstSeen: string;
+  lastActive: string;
+  status: 'ONLINE' | 'IDLE' | 'OFFLINE';
+  isCurrentDevice?: boolean;
+  sessionsCount: number;
+}
+
+export interface AICreditUsageRecord {
+  timestamp: string;
+  hourLabel: string;
+  geminiLiteTokens: number;
+  geminiFlashTokens: number;
+  ragInvertedTokens: number;
+  ragTokensSaved: number;
+  aiCreditsSpent: number;
+  websiteOpenings: number;
+  screeningsCount: number;
+}
+
+export interface SubsystemHealthInfo {
+  name: string;
+  status: 'OPERATIONAL' | 'DEGRADED' | 'REFRESHING' | 'MAINTENANCE';
+  latencyMs: number;
+  uptimePct: number;
+  lastChecked: string;
+  details: string;
 }

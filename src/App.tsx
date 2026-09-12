@@ -38,6 +38,9 @@ const ArchitectureView = lazy(() =>
 const RAGKnowledgeHub = lazy(() =>
   import('./components/RAGKnowledgeHub').then((m) => ({ default: m.RAGKnowledgeHub }))
 );
+const AdminPanel = lazy(() =>
+  import('./components/AdminPanel').then((m) => ({ default: m.AdminPanel }))
+);
 
 export default function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -45,10 +48,14 @@ export default function App() {
   // Officer session persisted in localStorage
   const [officer, setOfficer] = useState<OfficerProfile | null>(() => getStoredOfficerSession());
 
-  // Default to 'dashboard' if logged in, otherwise strictly 'login'
+  // Default to 'admin' if admin session, 'dashboard' if officer, otherwise 'login'
   const [activeView, setActiveView] = useState<
-    'hero' | 'login' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'rag'
-  >(() => (getStoredOfficerSession() ? 'dashboard' : 'login'));
+    'hero' | 'login' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'rag' | 'admin'
+  >(() => {
+    const session = getStoredOfficerSession();
+    if (!session) return 'login';
+    return session.isAdmin ? 'admin' : 'dashboard';
+  });
 
   // Current active case being screened
   const [currentCase, setCurrentCase] = useState<VerificationCase>(DEMO_CASE_1_GENUINE);
@@ -103,7 +110,7 @@ export default function App() {
   }, [isDark]);
 
   // Strict access guard: unauthenticated users cannot access internal views
-  const handleNavigate = (view: 'hero' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'rag' | 'login') => {
+  const handleNavigate = (view: 'hero' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'rag' | 'login' | 'admin') => {
     if (!officer && view !== 'login') {
       setActiveView('login');
       return;
@@ -149,7 +156,7 @@ export default function App() {
             <OfficerLogin
               onLoginSuccess={(authOfficer) => {
                 setOfficer(authOfficer);
-                setActiveView('dashboard');
+                setActiveView(authOfficer.isAdmin ? 'admin' : 'dashboard');
               }}
               isDark={isDark}
             />
@@ -229,6 +236,15 @@ export default function App() {
 
               {/* VIEW 8: RAG REGULATORY INTELLIGENCE HUB */}
               {activeView === 'rag' && <RAGKnowledgeHub isDark={isDark} />}
+
+              {/* VIEW 9: APEX ADMIN COMMAND & TELEMETRY */}
+              {activeView === 'admin' && (
+                <AdminPanel
+                  officer={officer}
+                  onNavigate={handleNavigate}
+                  isDark={isDark}
+                />
+              )}
             </Suspense>
           </>
         )}

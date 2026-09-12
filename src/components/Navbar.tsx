@@ -13,13 +13,14 @@ import {
   Layers,
   LayoutDashboard,
   Lock,
-  BookOpen
+  BookOpen,
+  Radio
 } from 'lucide-react';
 import { OfficerProfile } from '../types/screening';
 
 interface NavbarProps {
   currentView: string;
-  onNavigate: (view: 'hero' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'rag' | 'login') => void;
+  onNavigate: (view: 'hero' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'rag' | 'login' | 'admin') => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   officer: OfficerProfile | null;
@@ -37,7 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isDark = theme === 'dark';
 
-  const handleNavClick = (view: 'hero' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'rag' | 'login') => {
+  const handleNavClick = (view: 'hero' | 'dashboard' | 'workflow' | 'audit' | 'analytics' | 'architecture' | 'rag' | 'login' | 'admin') => {
     onNavigate(view);
     setMobileMenuOpen(false);
   };
@@ -166,6 +167,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Eco
               </span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => handleNavClick('admin')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+                currentView === 'admin'
+                  ? isDark
+                    ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40'
+                    : 'bg-black text-white font-bold'
+                  : isDark
+                  ? 'text-cyan-400 hover:bg-slate-800 font-semibold'
+                  : 'text-cyan-700 hover:bg-black/5 font-semibold'
+              }`}
+              title="Apex Admin Command, Device Telemetry & Self-Healing APIs"
+            >
+              <Radio className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+              <span>Admin Panel</span>
+            </button>
           </nav>
         ) : (
           <div className="hidden lg:flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-mono">
@@ -199,8 +218,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-black/15 shadow-sm'
                 }`}
               >
-                <Shield className="w-3.5 h-3.5 text-emerald-500" />
-                <span className="font-medium truncate max-w-[110px]">{officer.name}</span>
+                {officer.isAdmin ? (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-cyan-500 text-black">
+                    ADMIN
+                  </span>
+                ) : (
+                  <Shield className="w-3.5 h-3.5 text-emerald-500" />
+                )}
+                <span className="font-medium truncate max-w-[130px]">{officer.name}</span>
               </div>
               <button
                 type="button"
@@ -364,6 +389,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                         Eco
                       </span>
                     </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleNavClick('admin')}
+                    className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-colors ${
+                      currentView === 'admin'
+                        ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40'
+                        : 'hover:bg-black/5 dark:hover:bg-slate-800 text-cyan-400 font-semibold'
+                    }`}
+                  >
+                    <Radio className="w-4 h-4 text-cyan-400 animate-pulse" />
+                    <span>Admin Command & Telemetry</span>
                   </button>
                 </div>
               </>
